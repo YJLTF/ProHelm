@@ -39,6 +39,18 @@ pub fn run() {
             commands::reorder_task,
             commands::create_baseline,
             commands::list_baselines,
+            commands::list_risks,
+            commands::create_risk,
+            commands::update_risk,
+            commands::delete_risk,
+            commands::list_stakeholders,
+            commands::create_stakeholder,
+            commands::update_stakeholder,
+            commands::delete_stakeholder,
+            commands::get_charter,
+            commands::save_charter,
+            commands::set_tailored,
+            commands::apply_recommended_tailoring,
         ])
         .run(tauri::generate_context!())
         .expect("ProHelm 启动失败");

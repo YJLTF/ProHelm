@@ -1,10 +1,13 @@
 //! 类型化 Tauri 命令：薄封装 helm-core 仓库层，统一错误为可序列化结构。
 
-use helm_core::repo::{self, baselines, dependencies, schedule, stats::DashboardStats};
+use helm_core::repo::{
+    self, baselines, charters, dependencies, risks, schedule, stakeholders, stats::DashboardStats,
+};
 use helm_core::{
-    Baseline, CreateDependencyInput, CreateProjectInput, CreateTaskInput, Dependency,
-    MoveTaskInput, Project, ProjectSchedule, ReorderTaskInput, Task, UpdateDependencyInput,
-    UpdateProjectInput, UpdateTaskInput,
+    Baseline, CharterContent, CharterEnvelope, CreateDependencyInput, CreateProjectInput,
+    CreateRiskInput, CreateStakeholderInput, CreateTaskInput, Dependency, MoveTaskInput, Project,
+    ProjectSchedule, ReorderTaskInput, Risk, Stakeholder, Task, UpdateDependencyInput,
+    UpdateProjectInput, UpdateRiskInput, UpdateStakeholderInput, UpdateTaskInput,
 };
 use serde::Serialize;
 use tauri::State;
@@ -146,5 +149,93 @@ pub fn create_baseline(
 pub fn list_baselines(state: State<AppState>, project_id: String) -> CmdResult<Vec<Baseline>> {
     with_db(&state, |db| {
         baselines::list_by_project(&db.conn, &project_id)
+    })
+}
+
+// ---------- 工件：风险 / 干系人 / 章程 / 裁剪（S3） ----------
+
+#[tauri::command]
+pub fn list_risks(state: State<AppState>, project_id: String) -> CmdResult<Vec<Risk>> {
+    with_db(&state, |db| risks::list_by_project(&db.conn, &project_id))
+}
+
+#[tauri::command]
+pub fn create_risk(state: State<AppState>, input: CreateRiskInput) -> CmdResult<Risk> {
+    with_db(&state, |db| risks::create(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn update_risk(state: State<AppState>, input: UpdateRiskInput) -> CmdResult<Risk> {
+    with_db(&state, |db| risks::update(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn delete_risk(state: State<AppState>, id: String) -> CmdResult<()> {
+    with_db(&state, |db| risks::delete(&db.conn, &id))
+}
+
+#[tauri::command]
+pub fn list_stakeholders(
+    state: State<AppState>,
+    project_id: String,
+) -> CmdResult<Vec<Stakeholder>> {
+    with_db(&state, |db| {
+        stakeholders::list_by_project(&db.conn, &project_id)
+    })
+}
+
+#[tauri::command]
+pub fn create_stakeholder(
+    state: State<AppState>,
+    input: CreateStakeholderInput,
+) -> CmdResult<Stakeholder> {
+    with_db(&state, |db| stakeholders::create(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn update_stakeholder(
+    state: State<AppState>,
+    input: UpdateStakeholderInput,
+) -> CmdResult<Stakeholder> {
+    with_db(&state, |db| stakeholders::update(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn delete_stakeholder(state: State<AppState>, id: String) -> CmdResult<()> {
+    with_db(&state, |db| stakeholders::delete(&db.conn, &id))
+}
+
+#[tauri::command]
+pub fn get_charter(state: State<AppState>, project_id: String) -> CmdResult<CharterEnvelope> {
+    with_db(&state, |db| charters::get_or_create(&db.conn, &project_id))
+}
+
+#[tauri::command]
+pub fn save_charter(
+    state: State<AppState>,
+    project_id: String,
+    content: CharterContent,
+) -> CmdResult<CharterEnvelope> {
+    with_db(&state, |db| charters::save(&db.conn, &project_id, &content))
+}
+
+#[tauri::command]
+pub fn set_tailored(
+    state: State<AppState>,
+    project_id: String,
+    keys: Vec<String>,
+) -> CmdResult<Project> {
+    with_db(&state, |db| {
+        repo::projects::set_tailored(&db.conn, &project_id, &keys)
+    })
+}
+
+#[tauri::command]
+pub fn apply_recommended_tailoring(
+    state: State<AppState>,
+    project_id: String,
+) -> CmdResult<Project> {
+    with_db(&state, |db| {
+        repo::projects::apply_recommended_tailoring(&db.conn, &project_id)
     })
 }

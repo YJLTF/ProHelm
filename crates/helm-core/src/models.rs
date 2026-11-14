@@ -91,6 +91,8 @@ pub struct Project {
     pub start_date: Option<String>,
     pub target_end_date: Option<String>,
     pub bac: f64,
+    /// 方法论裁剪：启用的流程项 key 列表（创建时按开发方法预置，见 tailoring.rs）
+    pub tailored: Option<Vec<String>>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -313,4 +315,246 @@ pub struct Baseline {
     pub name: String,
     pub snapshot: String,
     pub created_at: String,
+}
+
+// ---------- S3：风险登记册 / 干系人登记册 / 项目章程 ----------
+
+db_enum!(
+    /// 风险类别（PMBOK 风险分解结构 RBS 常用分类）。
+    RiskCategory, default(Technical => "technical"), {
+        External => "external",
+        Organizational => "organizational",
+        Resource => "resource",
+        Schedule => "schedule",
+        Cost => "cost",
+        Quality => "quality",
+        Other => "other",
+    }
+);
+
+db_enum!(
+    /// 应对策略：规避 / 转移 / 减轻 / 接受 / 上报。
+    ResponseStrategy, default(Mitigate => "mitigate"), {
+        Avoid => "avoid",
+        Transfer => "transfer",
+        Accept => "accept",
+        Escalate => "escalate",
+    }
+);
+
+db_enum!(
+    /// 风险状态：打开 / 已发生（转为问题） / 关闭。
+    RiskStatus, default(Open => "open"), {
+        Occurred => "occurred",
+        Closed => "closed",
+    }
+);
+
+/// 风险登记册条目。评分 = 概率 × 影响（1~25），由显示层计算着色。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Risk {
+    pub id: String,
+    pub project_id: String,
+    pub risk_no: i64,
+    pub title: String,
+    pub detail: Option<String>,
+    pub category: RiskCategory,
+    pub probability: i64,
+    pub impact: i64,
+    pub response_strategy: ResponseStrategy,
+    pub response_plan: Option<String>,
+    pub owner: Option<String>,
+    pub trigger_desc: Option<String>,
+    pub status: RiskStatus,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl Risk {
+    pub fn score(&self) -> i64 {
+        self.probability * self.impact
+    }
+}
+
+fn default_risk_level() -> i64 {
+    3
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateRiskInput {
+    pub project_id: String,
+    pub title: String,
+    pub detail: Option<String>,
+    #[serde(default)]
+    pub category: RiskCategory,
+    #[serde(default = "default_risk_level")]
+    pub probability: i64,
+    #[serde(default = "default_risk_level")]
+    pub impact: i64,
+    #[serde(default)]
+    pub response_strategy: ResponseStrategy,
+    pub response_plan: Option<String>,
+    pub owner: Option<String>,
+    pub trigger_desc: Option<String>,
+}
+
+impl CreateRiskInput {
+    pub fn validate(&self) -> Result<()> {
+        if self.title.trim().is_empty() {
+            return Err(HelmError::Validation("风险标题不能为空".into()));
+        }
+        if !(1..=5).contains(&self.probability) || !(1..=5).contains(&self.impact) {
+            return Err(HelmError::Validation("概率/影响取值须在 1~5 之间".into()));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateRiskInput {
+    pub id: String,
+    pub title: Option<String>,
+    pub detail: Option<String>,
+    pub category: Option<RiskCategory>,
+    pub probability: Option<i64>,
+    pub impact: Option<i64>,
+    pub response_strategy: Option<ResponseStrategy>,
+    pub response_plan: Option<String>,
+    pub owner: Option<String>,
+    pub trigger_desc: Option<String>,
+    pub status: Option<RiskStatus>,
+}
+
+impl UpdateRiskInput {
+    pub fn validate(&self) -> Result<()> {
+        if let Some(title) = &self.title
+            && title.trim().is_empty()
+        {
+            return Err(HelmError::Validation("风险标题不能为空".into()));
+        }
+        if self.probability.is_some_and(|v| !(1..=5).contains(&v))
+            || self.impact.is_some_and(|v| !(1..=5).contains(&v))
+        {
+            return Err(HelmError::Validation("概率/影响取值须在 1~5 之间".into()));
+        }
+        Ok(())
+    }
+}
+
+/// 干系人登记册条目。管理策略由权力/利益方格推导（见 `strategy_key`）。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Stakeholder {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub role: Option<String>,
+    pub expectation: Option<String>,
+    pub influence: i64,
+    pub interest: i64,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl Stakeholder {
+    /// 权力/利益方格四象限：manage_closely / keep_satisfied / keep_informed / monitor。
+    pub fn strategy_key(&self) -> &'static str {
+        match (self.influence >= 4, self.interest >= 4) {
+            (true, true) => "manage_closely",
+            (true, false) => "keep_satisfied",
+            (false, true) => "keep_informed",
+            (false, false) => "monitor",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateStakeholderInput {
+    pub project_id: String,
+    pub name: String,
+    pub role: Option<String>,
+    pub expectation: Option<String>,
+    #[serde(default = "default_risk_level")]
+    pub influence: i64,
+    #[serde(default = "default_risk_level")]
+    pub interest: i64,
+    pub notes: Option<String>,
+}
+
+impl CreateStakeholderInput {
+    pub fn validate(&self) -> Result<()> {
+        if self.name.trim().is_empty() {
+            return Err(HelmError::Validation("干系人姓名不能为空".into()));
+        }
+        if !(1..=5).contains(&self.influence) || !(1..=5).contains(&self.interest) {
+            return Err(HelmError::Validation("权力/利益取值须在 1~5 之间".into()));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateStakeholderInput {
+    pub id: String,
+    pub name: Option<String>,
+    pub role: Option<String>,
+    pub expectation: Option<String>,
+    pub influence: Option<i64>,
+    pub interest: Option<i64>,
+    pub notes: Option<String>,
+}
+
+impl UpdateStakeholderInput {
+    pub fn validate(&self) -> Result<()> {
+        if let Some(name) = &self.name
+            && name.trim().is_empty()
+        {
+            return Err(HelmError::Validation("干系人姓名不能为空".into()));
+        }
+        if self.influence.is_some_and(|v| !(1..=5).contains(&v))
+            || self.interest.is_some_and(|v| !(1..=5).contains(&v))
+        {
+            return Err(HelmError::Validation("权力/利益取值须在 1~5 之间".into()));
+        }
+        Ok(())
+    }
+}
+
+/// 项目章程（分节结构化）。S4 AI 起草按同一结构逐节生成 → 预览采纳。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CharterContent {
+    #[serde(default)]
+    pub objective: String,
+    #[serde(default)]
+    pub success_criteria: String,
+    #[serde(default)]
+    pub key_deliverables: String,
+    #[serde(default)]
+    pub milestones: String,
+    #[serde(default)]
+    pub constraints: String,
+    #[serde(default)]
+    pub assumptions: String,
+    #[serde(default)]
+    pub high_level_risks: String,
+    #[serde(default)]
+    pub pm_authority: String,
+}
+
+/// 章程读取结果。`created` = 本次调用新建了默认空章程。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CharterEnvelope {
+    pub id: String,
+    pub project_id: String,
+    pub charter: CharterContent,
+    pub updated_at: String,
+    pub created: bool,
 }

@@ -9,11 +9,23 @@ use crate::models::{
 use crate::repo::oplog;
 use crate::util;
 
-const COLS: &str = "id, name, code, method, status, description, start_date, target_end_date, bac, created_at, updated_at";
+const COLS: &str = "id, name, code, method, status, description, start_date, target_end_date, bac, tailored, created_at, updated_at";
 
 fn map_row(row: &Row) -> rusqlite::Result<Project> {
     let method: String = row.get("method")?;
     let status: String = row.get("status")?;
+    let tailored_raw: Option<String> = row.get("tailored")?;
+    let tailored = match tailored_raw {
+        Some(s) => {
+            let parsed = serde_json::from_str::<Vec<String>>(&s).map_err(|e| {
+                crate::repo::enum_conversion_error(HelmError::Validation(format!(
+                    "裁剪配置损坏: {e}"
+                )))
+            })?;
+            Some(parsed)
+        }
+        None => None,
+    };
     Ok(Project {
         id: row.get("id")?,
         name: row.get("name")?,
@@ -24,6 +36,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Project> {
         start_date: row.get("start_date")?,
         target_end_date: row.get("target_end_date")?,
         bac: row.get("bac")?,
+        tailored,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
@@ -53,9 +66,10 @@ pub fn create(conn: &Connection, input: &CreateProjectInput) -> Result<Project> 
     input.validate()?;
     let id = util::new_id();
     let now = util::now_iso();
+    let tailored_json = serde_json::to_string(&crate::tailoring::preset_for_method(input.method))?;
     conn.execute(
-        "INSERT INTO projects (id, name, code, method, status, description, start_date, target_end_date, bac, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 'planning', ?5, ?6, ?7, ?8, ?9, ?9)",
+        "INSERT INTO projects (id, name, code, method, status, description, start_date, target_end_date, bac, tailored, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, 'planning', ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
         params![
             id,
             input.name.trim(),
@@ -65,6 +79,7 @@ pub fn create(conn: &Connection, input: &CreateProjectInput) -> Result<Project> 
             input.start_date,
             input.target_end_date,
             input.bac,
+            tailored_json,
             now,
         ],
     )?;
@@ -125,4 +140,33 @@ pub fn delete(conn: &Connection, id: &str) -> Result<()> {
         return Err(not_found(id));
     }
     oplog::record(conn, "project", id, "delete", "{}")
+}
+
+/// 覆盖保存方法论裁剪配置（key 必须在 tailoring::ALL_ITEMS 中）。
+pub fn set_tailored(conn: &Connection, project_id: &str, keys: &[String]) -> Result<Project> {
+    for k in keys {
+        if !crate::tailoring::is_valid_key(k) {
+            return Err(HelmError::Validation(format!("未知的流程项: {k}")));
+        }
+    }
+    let json = serde_json::to_string(keys)?;
+    let affected = conn.execute(
+        "UPDATE projects SET tailored = ?1, updated_at = ?2 WHERE id = ?3",
+        params![json, util::now_iso(), project_id],
+    )?;
+    if affected == 0 {
+        return Err(not_found(project_id));
+    }
+    oplog::record(conn, "project", project_id, "tailor", &json)?;
+    get(conn, project_id)
+}
+
+/// 重置为当前开发方法的推荐裁剪预设。
+pub fn apply_recommended_tailoring(conn: &Connection, project_id: &str) -> Result<Project> {
+    let project = get(conn, project_id)?;
+    let preset: Vec<String> = crate::tailoring::preset_for_method(project.method)
+        .into_iter()
+        .map(String::from)
+        .collect();
+    set_tailored(conn, project_id, &preset)
 }

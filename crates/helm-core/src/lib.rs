@@ -11,13 +11,16 @@ pub mod error;
 pub mod migrations;
 pub mod models;
 pub mod repo;
+pub mod tailoring;
 pub mod util;
 
 pub use error::{HelmError, Result};
 pub use models::{
-    Baseline, CreateDependencyInput, CreateProjectInput, CreateTaskInput, Dependency,
-    DependencyType, MoveTaskInput, Project, ProjectMethod, ProjectStatus, ReorderTaskInput, Task,
-    TaskMoveDirection, TaskPriority, TaskStatus, UpdateDependencyInput, UpdateProjectInput,
+    Baseline, CharterContent, CharterEnvelope, CreateDependencyInput, CreateProjectInput,
+    CreateRiskInput, CreateStakeholderInput, CreateTaskInput, Dependency, DependencyType,
+    MoveTaskInput, Project, ProjectMethod, ProjectStatus, ReorderTaskInput, ResponseStrategy, Risk,
+    RiskCategory, RiskStatus, Stakeholder, Task, TaskMoveDirection, TaskPriority, TaskStatus,
+    UpdateDependencyInput, UpdateProjectInput, UpdateRiskInput, UpdateStakeholderInput,
     UpdateTaskInput,
 };
 pub use repo::schedule::ProjectSchedule;
