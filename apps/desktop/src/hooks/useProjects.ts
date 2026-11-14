@@ -3,8 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/ipc";
 import { toastError } from "../store/toast";
 import type {
+  CreateDependencyInput,
   CreateProjectInput,
   CreateTaskInput,
+  MoveTaskInput,
+  ReorderTaskInput,
   UpdateProjectInput,
   UpdateTaskInput,
 } from "../types";
@@ -104,6 +107,72 @@ export function useDeleteTask(projectId: string) {
   return useMutation({
     mutationFn: (id: string) => api.deleteTask(id),
     onSuccess: () => invalidateTasks(qc, projectId),
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+// ---------- S2：排程 / 依赖 / WBS 重排 / 基线 ----------
+
+export function useSchedule(projectId: string) {
+  return useQuery({
+    queryKey: ["schedule", projectId],
+    queryFn: () => api.getSchedule(projectId),
+    enabled: projectId.length > 0,
+  });
+}
+
+function invalidateSchedule(qc: ReturnType<typeof useQueryClient>, projectId: string) {
+  void qc.invalidateQueries({ queryKey: ["schedule", projectId] });
+}
+
+export function useCreateDependency(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateDependencyInput) => api.createDependency(input),
+    onSuccess: () => invalidateSchedule(qc, projectId),
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useMoveTask(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: MoveTaskInput) => api.moveTask(input),
+    onSuccess: () => {
+      invalidateTasks(qc, projectId);
+      invalidateSchedule(qc, projectId);
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useReorderTask(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReorderTaskInput) => api.reorderTask(input),
+    onSuccess: () => {
+      invalidateTasks(qc, projectId);
+      invalidateSchedule(qc, projectId);
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useBaselines(projectId: string) {
+  return useQuery({
+    queryKey: ["baselines", projectId],
+    queryFn: () => api.listBaselines(projectId),
+    enabled: projectId.length > 0,
+  });
+}
+
+export function useCreateBaseline(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.createBaseline(projectId, name),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["baselines", projectId] });
+    },
     onError: (e: Error) => toastError(e.message),
   });
 }

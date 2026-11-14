@@ -17,12 +17,15 @@
 | [05-团队组建方案](docs/05-团队组建方案.md) | 角色矩阵、配置方案 A/B、AI 智能体工作流、招聘要点、决策机制 |
 | [conventions.md](docs/conventions.md) | 代码规范、测试要求、已知边界（AI 与人类共用基准） |
 
-## 当前状态：M1 · Sprint 1（工程骨架已就绪 ✅）
+## 当前状态：M1 · Sprint 1 已完成，Sprint 2 主体提前完成 ✅
 
 - Tauri 2 + React 19 + Rust 核心（`crates/helm-core`）三端可构建
 - SQLite + 版本化迁移 + 项目/任务 CRUD 全链路（含 OpLog 事件打底）
-- 驾驶舱 / 项目列表 / 项目工作区（PMBOK 8 五焦点领域页签）/ 任务与 WBS 编码 / 看板视图
-- CI：前端检查构建 + Rust fmt/clippy/test（GitHub Actions）
+- **S2 已落地**：CPM 关键路径算法（黄金用例单测）、FS/SS/FF/SF 依赖（环检测）、
+  甘特图（关键路径高亮/依赖连线/日周月视图）、WBS 树编辑（移动/重排/自动重编号）、
+  计划基线快照、任务工期字段
+- 驾驶舱 / 项目列表 / 项目工作区（PMBOK 8 五焦点领域页签）/ 任务与看板视图
+- CI：前端检查构建 + Rust fmt/clippy/test（GitHub Actions）；22 个 Rust 测试全绿
 
 ## 开发指南
 

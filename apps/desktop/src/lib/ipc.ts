@@ -1,10 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  Baseline,
+  CreateDependencyInput,
   CreateProjectInput,
   CreateTaskInput,
   DashboardStats,
+  Dependency,
+  MoveTaskInput,
   Project,
+  ProjectSchedule,
+  ReorderTaskInput,
   Task,
+  UpdateDependencyInput,
   UpdateProjectInput,
   UpdateTaskInput,
 } from "../types";
@@ -27,4 +34,23 @@ export const api = {
 
   // 驾驶舱
   dashboardStats: () => invoke<DashboardStats>("get_dashboard_stats"),
+
+  // 进度：排程 / 依赖（S2）
+  getSchedule: (projectId: string) =>
+    invoke<ProjectSchedule>("get_schedule", { projectId }),
+  createDependency: (input: CreateDependencyInput) =>
+    invoke<Dependency>("create_dependency", { input }),
+  updateDependency: (input: UpdateDependencyInput) =>
+    invoke<Dependency>("update_dependency", { input }),
+  deleteDependency: (id: string) => invoke<void>("delete_dependency", { id }),
+
+  // WBS 重排（S2）
+  moveTask: (input: MoveTaskInput) => invoke<Task>("move_task", { input }),
+  reorderTask: (input: ReorderTaskInput) => invoke<Task>("reorder_task", { input }),
+
+  // 基线（S2）
+  createBaseline: (projectId: string, name: string) =>
+    invoke<Baseline>("create_baseline", { projectId, name }),
+  listBaselines: (projectId: string) =>
+    invoke<Baseline[]>("list_baselines", { projectId }),
 };

@@ -3,10 +3,20 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Input, Label, Select, Textarea } from "../ui/Input";
-import { useCreateTask, useUpdateTask } from "../../hooks/useProjects";
+import {
+  useCreateDependency,
+  useCreateTask,
+  useUpdateTask,
+} from "../../hooks/useProjects";
 import { toast, toastError } from "../../store/toast";
 import { TASK_PRIORITY_LABEL } from "../../types";
-import type { CreateTaskInput, Task, TaskPriority, UpdateTaskInput } from "../../types";
+import type {
+  CreateTaskInput,
+  DependencyType,
+  Task,
+  TaskPriority,
+  UpdateTaskInput,
+} from "../../types";
 
 interface Props {
   projectId: string;
@@ -20,9 +30,11 @@ interface Props {
 interface FormState {
   title: string;
   parentId: string;
+  predecessorId: string;
   notes: string;
   priority: TaskPriority;
   estimateHours: string;
+  durationDays: string;
   startDate: string;
   endDate: string;
   assignee: string;
@@ -31,9 +43,11 @@ interface FormState {
 const EMPTY: FormState = {
   title: "",
   parentId: "",
+  predecessorId: "",
   notes: "",
   priority: "medium",
   estimateHours: "",
+  durationDays: "1",
   startDate: "",
   endDate: "",
   assignee: "",
@@ -44,6 +58,7 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
   const [form, setForm] = useState<FormState>(EMPTY);
   const create = useCreateTask(projectId);
   const update = useUpdateTask(projectId);
+  const createDep = useCreateDependency(projectId);
 
   useEffect(() => {
     if (!open) return;
@@ -51,9 +66,11 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
       setForm({
         title: initial.title,
         parentId: initial.parentId ?? "",
+        predecessorId: "",
         notes: initial.notes ?? "",
         priority: initial.priority,
         estimateHours: initial.estimateHours > 0 ? String(initial.estimateHours) : "",
+        durationDays: String(initial.durationDays),
         startDate: initial.startDate ?? "",
         endDate: initial.endDate ?? "",
         assignee: initial.assignee ?? "",
@@ -71,6 +88,7 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
       return;
     }
     const hours = form.estimateHours ? Number(form.estimateHours) : 0;
+    const duration = form.durationDays ? Number(form.durationDays) : 0;
     if (isEdit && initial) {
       const payload: UpdateTaskInput = {
         id: initial.id,
@@ -78,6 +96,7 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
         notes: form.notes || null,
         priority: form.priority,
         estimateHours: hours,
+        durationDays: duration,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         assignee: form.assignee || null,
@@ -96,12 +115,23 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
         notes: form.notes || null,
         priority: form.priority,
         estimateHours: hours,
+        durationDays: form.durationDays ? Number(form.durationDays) : 1,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         assignee: form.assignee || null,
       };
       create.mutate(payload, {
-        onSuccess: () => {
+        onSuccess: (task) => {
+          // 前置任务（S2 仅支持创建时指定 FS 依赖，完整依赖编辑 S3 实现）
+          if (form.predecessorId) {
+            createDep.mutate({
+              projectId,
+              predecessorId: form.predecessorId,
+              successorId: task.id,
+              depType: "fs" satisfies DependencyType,
+              lagDays: 0,
+            });
+          }
           toast("任务已创建");
           onClose();
         },
@@ -109,8 +139,9 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
     }
   };
 
-  // 编辑模式不修改父级（层级移动属 WBS 重排，S2 实现）
+  // 编辑模式不修改父级与依赖（WBS 重排在列表行内完成，依赖编辑 S3 实现）
   const parentOptions = isEdit ? [] : tasks;
+  const predecessorOptions = isEdit ? [] : tasks;
 
   return (
     <Dialog
@@ -137,16 +168,32 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
         </div>
 
         {!isEdit && (
-          <div>
-            <Label>父任务（决定 WBS 层级）</Label>
-            <Select value={form.parentId} onChange={(e) => set({ parentId: e.target.value })}>
-              <option value="">— 顶层工作包 —</option>
-              {parentOptions.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.wbsCode} {t.title}
-                </option>
-              ))}
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>父任务（决定 WBS 层级）</Label>
+              <Select value={form.parentId} onChange={(e) => set({ parentId: e.target.value })}>
+                <option value="">— 顶层工作包 —</option>
+                {parentOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.wbsCode} {t.title}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>前置任务（完成后开始 · FS）</Label>
+              <Select
+                value={form.predecessorId}
+                onChange={(e) => set({ predecessorId: e.target.value })}
+              >
+                <option value="">— 无 —</option>
+                {predecessorOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.wbsCode} {t.title}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
         )}
 
@@ -165,6 +212,16 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
             </Select>
           </div>
           <div>
+            <Label>工期（天）</Label>
+            <Input
+              type="number"
+              min={0}
+              step={0.5}
+              value={form.durationDays}
+              onChange={(e) => set({ durationDays: e.target.value })}
+            />
+          </div>
+          <div>
             <Label>预估工时（小时）</Label>
             <Input
               type="number"
@@ -172,6 +229,14 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
               step={0.5}
               value={form.estimateHours}
               onChange={(e) => set({ estimateHours: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>负责人</Label>
+            <Input
+              value={form.assignee}
+              onChange={(e) => set({ assignee: e.target.value })}
+              placeholder="成员名（S3 接入成员表）"
             />
           </div>
           <div>
@@ -188,14 +253,6 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
               type="date"
               value={form.endDate}
               onChange={(e) => set({ endDate: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>负责人</Label>
-            <Input
-              value={form.assignee}
-              onChange={(e) => set({ assignee: e.target.value })}
-              placeholder="成员名（S3 接入成员表）"
             />
           </div>
         </div>

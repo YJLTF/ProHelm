@@ -26,3 +26,14 @@ body {
 *::-webkit-scrollbar-thumb:hover {
   background: rgb(148 163 184);
 }
+
+/* frappe-gantt：关键路径（红）与浮动任务（浅蓝）配色 */
+.gantt .bar-wrapper.bar-critical .bar {
+  fill: #e11d48;
+}
+.gantt .bar-wrapper.bar-critical .bar-label {
+  fill: #ffffff;
+}
+.gantt .bar-wrapper.bar-float .bar {
+  fill: #93c5fd;
+}

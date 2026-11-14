@@ -52,6 +52,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   estimateHours: number;
+  durationDays: number;
   actualHours: number;
   startDate: string | null;
   endDate: string | null;
@@ -68,6 +69,7 @@ export interface CreateTaskInput {
   notes?: string | null;
   priority?: TaskPriority;
   estimateHours?: number;
+  durationDays?: number;
   startDate?: string | null;
   endDate?: string | null;
   assignee?: string | null;
@@ -80,6 +82,7 @@ export interface UpdateTaskInput {
   status?: TaskStatus;
   priority?: TaskPriority;
   estimateHours?: number;
+  durationDays?: number;
   actualHours?: number;
   startDate?: string | null;
   endDate?: string | null;
@@ -96,6 +99,82 @@ export interface DashboardStats {
   overdueTasks: number;
   dueSoonTasks: number;
 }
+
+// ---------- S2：进度（依赖 / 排程 / 基线） ----------
+
+export type DependencyType = "fs" | "ss" | "ff" | "sf";
+
+export interface Dependency {
+  id: string;
+  projectId: string;
+  predecessorId: string;
+  successorId: string;
+  depType: DependencyType;
+  lagDays: number;
+  createdAt: string;
+}
+
+export interface CreateDependencyInput {
+  projectId: string;
+  predecessorId: string;
+  successorId: string;
+  depType?: DependencyType;
+  lagDays?: number;
+}
+
+export interface UpdateDependencyInput {
+  id: string;
+  depType?: DependencyType;
+  lagDays?: number;
+}
+
+export interface MoveTaskInput {
+  taskId: string;
+  newParentId: string | null;
+}
+
+export type TaskMoveDirection = "up" | "down";
+
+export interface ReorderTaskInput {
+  taskId: string;
+  direction: TaskMoveDirection;
+}
+
+/** 排程视图的单任务条目（CPM 计算结果 + 锚点日历换算，日期均含当天） */
+export interface ScheduleTask {
+  taskId: string;
+  wbsCode: string | null;
+  title: string;
+  startDate: string;
+  endDate: string;
+  esDays: number;
+  efDays: number;
+  totalFloatDays: number;
+  critical: boolean;
+  predecessorIds: string[];
+}
+
+export interface ProjectSchedule {
+  projectId: string;
+  anchorDate: string;
+  durationDays: number;
+  tasks: ScheduleTask[];
+}
+
+export interface Baseline {
+  id: string;
+  projectId: string;
+  name: string;
+  snapshot: string;
+  createdAt: string;
+}
+
+export const DEP_TYPE_LABEL: Record<DependencyType, string> = {
+  fs: "完成后开始 (FS)",
+  ss: "开始后开始 (SS)",
+  ff: "完成后完成 (FF)",
+  sf: "开始后完成 (SF)",
+};
 
 export const PROJECT_METHOD_LABEL: Record<ProjectMethod, string> = {
   predictive: "预测型",

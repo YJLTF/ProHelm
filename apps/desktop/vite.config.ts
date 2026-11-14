@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -6,6 +7,14 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   clearScreen: false,
+  resolve: {
+    alias: {
+      // frappe-gantt 的 exports 未暴露子路径 CSS，用别名指向实际文件
+      "frappe-gantt/dist/frappe-gantt.css": fileURLToPath(
+        new URL("./node_modules/frappe-gantt/dist/frappe-gantt.css", import.meta.url),
+      ),
+    },
+  },
   server: {
     port: 1420,
     strictPort: true,
