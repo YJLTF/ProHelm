@@ -16,6 +16,8 @@ export interface Project {
   startDate: string | null;
   targetEndDate: string | null;
   bac: number;
+  /** 方法论裁剪：启用的流程项 key（见 src/data/templates.ts 的 TAILORING_GROUPS） */
+  tailored: string[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -174,6 +176,177 @@ export const DEP_TYPE_LABEL: Record<DependencyType, string> = {
   ss: "开始后开始 (SS)",
   ff: "完成后完成 (FF)",
   sf: "开始后完成 (SF)",
+};
+
+// ---------- S3：风险 / 干系人 / 章程 ----------
+
+export type RiskCategory =
+  | "technical"
+  | "external"
+  | "organizational"
+  | "resource"
+  | "schedule"
+  | "cost"
+  | "quality"
+  | "other";
+export type ResponseStrategy = "avoid" | "transfer" | "mitigate" | "accept" | "escalate";
+export type RiskStatusType = "open" | "occurred" | "closed";
+
+export interface Risk {
+  id: string;
+  projectId: string;
+  riskNo: number;
+  title: string;
+  detail: string | null;
+  category: RiskCategory;
+  probability: number;
+  impact: number;
+  responseStrategy: ResponseStrategy;
+  responsePlan: string | null;
+  owner: string | null;
+  triggerDesc: string | null;
+  status: RiskStatusType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRiskInput {
+  projectId: string;
+  title: string;
+  detail?: string | null;
+  category?: RiskCategory;
+  probability?: number;
+  impact?: number;
+  responseStrategy?: ResponseStrategy;
+  responsePlan?: string | null;
+  owner?: string | null;
+  triggerDesc?: string | null;
+}
+
+export interface UpdateRiskInput {
+  id: string;
+  title?: string | null;
+  detail?: string | null;
+  category?: RiskCategory;
+  probability?: number;
+  impact?: number;
+  responseStrategy?: ResponseStrategy;
+  responsePlan?: string | null;
+  owner?: string | null;
+  triggerDesc?: string | null;
+  status?: RiskStatusType;
+}
+
+export const RISK_CATEGORY_LABEL: Record<RiskCategory, string> = {
+  technical: "技术",
+  external: "外部",
+  organizational: "组织",
+  resource: "资源",
+  schedule: "进度",
+  cost: "成本",
+  quality: "质量",
+  other: "其他",
+};
+
+export const RESPONSE_STRATEGY_LABEL: Record<ResponseStrategy, string> = {
+  avoid: "规避",
+  transfer: "转移",
+  mitigate: "减轻",
+  accept: "接受",
+  escalate: "上报",
+};
+
+export const RISK_STATUS_LABEL: Record<RiskStatusType, string> = {
+  open: "打开",
+  occurred: "已发生",
+  closed: "已关闭",
+};
+
+/** 评分阈值：>=15 红（高）、>=8 黄（中）、否则绿（低） */
+export function riskScoreTone(score: number): "red" | "amber" | "green" {
+  if (score >= 15) return "red";
+  if (score >= 8) return "amber";
+  return "green";
+}
+
+export type StakeholderStrategy = "manage_closely" | "keep_satisfied" | "keep_informed" | "monitor";
+
+export interface Stakeholder {
+  id: string;
+  projectId: string;
+  name: string;
+  role: string | null;
+  expectation: string | null;
+  influence: number;
+  interest: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateStakeholderInput {
+  projectId: string;
+  name: string;
+  role?: string | null;
+  expectation?: string | null;
+  influence?: number;
+  interest?: number;
+  notes?: string | null;
+}
+
+export interface UpdateStakeholderInput {
+  id: string;
+  name?: string | null;
+  role?: string | null;
+  expectation?: string | null;
+  influence?: number;
+  interest?: number;
+  notes?: string | null;
+}
+
+export const STAKEHOLDER_STRATEGY_LABEL: Record<StakeholderStrategy, string> = {
+  manage_closely: "重点管理",
+  keep_satisfied: "令其满意",
+  keep_informed: "随时告知",
+  monitor: "监控即可",
+};
+
+/** 权力/利益方格 → 管理策略（与后端 Stakeholder::strategy_key 一致） */
+export function stakeholderStrategy(influence: number, interest: number): StakeholderStrategy {
+  if (influence >= 4 && interest >= 4) return "manage_closely";
+  if (influence >= 4) return "keep_satisfied";
+  if (interest >= 4) return "keep_informed";
+  return "monitor";
+}
+
+export interface CharterContent {
+  objective: string;
+  successCriteria: string;
+  keyDeliverables: string;
+  milestones: string;
+  constraints: string;
+  assumptions: string;
+  highLevelRisks: string;
+  pmAuthority: string;
+}
+
+export interface CharterEnvelope {
+  id: string;
+  projectId: string;
+  charter: CharterContent;
+  updatedAt: string;
+  created: boolean;
+}
+
+export const EMPTY_CHARTER: CharterContent = {
+  objective: "",
+  successCriteria: "",
+  keyDeliverables: "",
+  milestones: "",
+  constraints: "",
+  assumptions: "",
+  highLevelRisks: "",
+  pmAuthority: "",
 };
 
 export const PROJECT_METHOD_LABEL: Record<ProjectMethod, string> = {

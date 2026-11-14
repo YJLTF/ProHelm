@@ -1,8 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   Baseline,
+  CharterContent,
+  CharterEnvelope,
   CreateDependencyInput,
   CreateProjectInput,
+  CreateRiskInput,
+  CreateStakeholderInput,
   CreateTaskInput,
   DashboardStats,
   Dependency,
@@ -10,9 +14,13 @@ import type {
   Project,
   ProjectSchedule,
   ReorderTaskInput,
+  Risk,
+  Stakeholder,
   Task,
   UpdateDependencyInput,
   UpdateProjectInput,
+  UpdateRiskInput,
+  UpdateStakeholderInput,
   UpdateTaskInput,
 } from "../types";
 
@@ -53,4 +61,30 @@ export const api = {
     invoke<Baseline>("create_baseline", { projectId, name }),
   listBaselines: (projectId: string) =>
     invoke<Baseline[]>("list_baselines", { projectId }),
+
+  // 风险登记册（S3）
+  listRisks: (projectId: string) => invoke<Risk[]>("list_risks", { projectId }),
+  createRisk: (input: CreateRiskInput) => invoke<Risk>("create_risk", { input }),
+  updateRisk: (input: UpdateRiskInput) => invoke<Risk>("update_risk", { input }),
+  deleteRisk: (id: string) => invoke<void>("delete_risk", { id }),
+
+  // 干系人登记册（S3）
+  listStakeholders: (projectId: string) =>
+    invoke<Stakeholder[]>("list_stakeholders", { projectId }),
+  createStakeholder: (input: CreateStakeholderInput) =>
+    invoke<Stakeholder>("create_stakeholder", { input }),
+  updateStakeholder: (input: UpdateStakeholderInput) =>
+    invoke<Stakeholder>("update_stakeholder", { input }),
+  deleteStakeholder: (id: string) => invoke<void>("delete_stakeholder", { id }),
+
+  // 项目章程（S3）
+  getCharter: (projectId: string) => invoke<CharterEnvelope>("get_charter", { projectId }),
+  saveCharter: (projectId: string, content: CharterContent) =>
+    invoke<CharterEnvelope>("save_charter", { projectId, content }),
+
+  // 方法论裁剪（S3）
+  setTailored: (projectId: string, keys: string[]) =>
+    invoke<Project>("set_tailored", { projectId, keys }),
+  applyRecommendedTailoring: (projectId: string) =>
+    invoke<Project>("apply_recommended_tailoring", { projectId }),
 };

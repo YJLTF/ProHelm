@@ -3,12 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/ipc";
 import { toastError } from "../store/toast";
 import type {
+  CharterContent,
   CreateDependencyInput,
   CreateProjectInput,
+  CreateRiskInput,
+  CreateStakeholderInput,
   CreateTaskInput,
   MoveTaskInput,
   ReorderTaskInput,
   UpdateProjectInput,
+  UpdateRiskInput,
+  UpdateStakeholderInput,
   UpdateTaskInput,
 } from "../types";
 
@@ -173,6 +178,132 @@ export function useCreateBaseline(projectId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["baselines", projectId] });
     },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+// ---------- S3：风险 / 干系人 / 章程 / 裁剪 ----------
+
+export function useRisks(projectId: string) {
+  return useQuery({
+    queryKey: ["risks", projectId],
+    queryFn: () => api.listRisks(projectId),
+    enabled: projectId.length > 0,
+  });
+}
+
+export function useCreateRisk(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateRiskInput) => api.createRisk(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["risks", projectId] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useUpdateRisk(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateRiskInput) => api.updateRisk(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["risks", projectId] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useDeleteRisk(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteRisk(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["risks", projectId] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useStakeholders(projectId: string) {
+  return useQuery({
+    queryKey: ["stakeholders", projectId],
+    queryFn: () => api.listStakeholders(projectId),
+    enabled: projectId.length > 0,
+  });
+}
+
+export function useCreateStakeholder(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateStakeholderInput) => api.createStakeholder(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stakeholders", projectId] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useUpdateStakeholder(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateStakeholderInput) => api.updateStakeholder(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stakeholders", projectId] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useDeleteStakeholder(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteStakeholder(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["stakeholders", projectId] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useCharter(projectId: string) {
+  return useQuery({
+    queryKey: ["charter", projectId],
+    queryFn: () => api.getCharter(projectId),
+    enabled: projectId.length > 0,
+  });
+}
+
+export function useSaveCharter(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (content: CharterContent) => api.saveCharter(projectId, content),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["charter", projectId] });
+    },
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+function invalidateProject(qc: ReturnType<typeof useQueryClient>, projectId: string) {
+  void qc.invalidateQueries({ queryKey: ["projects", projectId] });
+  void qc.invalidateQueries({ queryKey: ["projects"] });
+}
+
+export function useSetTailored(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (keys: string[]) => api.setTailored(projectId, keys),
+    onSuccess: () => invalidateProject(qc, projectId),
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useApplyRecommendedTailoring(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.applyRecommendedTailoring(projectId),
+    onSuccess: () => invalidateProject(qc, projectId),
     onError: (e: Error) => toastError(e.message),
   });
 }
