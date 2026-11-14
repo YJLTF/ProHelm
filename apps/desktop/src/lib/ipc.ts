@@ -1,8 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { Channel } from "@tauri-apps/api/core";
 import type {
+  AiArtifact,
+  AiArtifactStatusType,
+  AiSettingsView,
   Baseline,
   CharterContent,
   CharterEnvelope,
+  CharterDraftOut,
   CreateDependencyInput,
   CreateProjectInput,
   CreateRiskInput,
@@ -22,6 +27,7 @@ import type {
   UpdateRiskInput,
   UpdateStakeholderInput,
   UpdateTaskInput,
+  WbsDraftOut,
 } from "../types";
 
 /// 类型化 IPC 层：函数签名与 src-tauri/src/commands.rs 一一对应。
@@ -87,4 +93,23 @@ export const api = {
     invoke<Project>("set_tailored", { projectId, keys }),
   applyRecommendedTailoring: (projectId: string) =>
     invoke<Project>("apply_recommended_tailoring", { projectId }),
+
+  // AI 舵手（S4）
+  getAiSettings: () => invoke<AiSettingsView>("get_ai_settings"),
+  setAiSettings: (baseUrl: string, model: string, apiKey?: string | null) =>
+    invoke<AiSettingsView>("set_ai_settings", { baseUrl, model, apiKey: apiKey ?? null }),
+  testAiConnection: () => invoke<string>("test_ai_connection"),
+  coachAsk: (
+    channel: Channel<{ event: "delta" | "done"; text?: string }>,
+    question: string,
+    projectId?: string | null,
+  ) => invoke<string>("coach_ask", { channel, question, projectId: projectId ?? null }),
+  generateCharterDraft: (projectId: string) =>
+    invoke<CharterDraftOut>("generate_charter_draft", { projectId }),
+  generateWbsDraft: (projectId: string, requirements: string) =>
+    invoke<WbsDraftOut>("generate_wbs_draft", { projectId, requirements }),
+  listAiArtifacts: (projectId?: string | null) =>
+    invoke<AiArtifact[]>("list_ai_artifacts", { projectId: projectId ?? null }),
+  setArtifactStatus: (id: string, status: AiArtifactStatusType) =>
+    invoke<AiArtifact>("set_artifact_status", { id, status }),
 };

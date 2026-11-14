@@ -10,6 +10,7 @@ import {
   ShipWheel,
 } from "lucide-react";
 
+import { CopilotPanel } from "../copilot/CopilotPanel";
 import { cn } from "../../lib/format";
 import { useToastStore } from "../../store/toast";
 import { useUiStore } from "../../store/ui";
@@ -31,6 +32,8 @@ const navItems: NavItem[] = [
 export function AppLayout() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const copilotOpen = useUiStore((s) => s.copilotOpen);
+  const setCopilotOpen = useUiStore((s) => s.setCopilotOpen);
   const toastMessage = useToastStore((s) => s.message);
   const toastTone = useToastStore((s) => s.tone);
 
@@ -90,6 +93,18 @@ export function AppLayout() {
       <main className="min-w-0 flex-1 overflow-y-auto bg-slate-50">
         <Outlet />
       </main>
+
+      {/* 舵手悬浮入口 */}
+      {!copilotOpen && (
+        <button
+          onClick={() => setCopilotOpen(true)}
+          title="打开舵手（PMP 教练）"
+          className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition hover:bg-blue-700"
+        >
+          <ShipWheel size={22} />
+        </button>
+      )}
+      <CopilotPanel />
 
       {toastMessage && (
         <div

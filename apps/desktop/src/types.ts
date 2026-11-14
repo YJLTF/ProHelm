@@ -349,6 +349,57 @@ export const EMPTY_CHARTER: CharterContent = {
   pmAuthority: "",
 };
 
+// ---------- S4：AI 舵手 ----------
+
+export type AiArtifactKindType = "coach" | "charter_draft" | "wbs_draft";
+export type AiArtifactStatusType = "draft" | "adopted" | "discarded";
+
+export interface AiArtifact {
+  id: string;
+  projectId: string | null;
+  kind: AiArtifactKindType;
+  provider: string;
+  model: string;
+  inputSummary: string;
+  output: string;
+  status: AiArtifactStatusType;
+  createdAt: string;
+}
+
+export const AI_KIND_LABEL: Record<AiArtifactKindType, string> = {
+  coach: "教练问答",
+  charter_draft: "章程草稿",
+  wbs_draft: "WBS 拆解",
+};
+
+export const AI_STATUS_LABEL: Record<AiArtifactStatusType, string> = {
+  draft: "草稿",
+  adopted: "已采纳",
+  discarded: "已弃用",
+};
+
+export interface AiSettingsView {
+  baseUrl: string | null;
+  model: string | null;
+  hasApiKey: boolean;
+}
+
+export interface WbsDraftItem {
+  title: string;
+  durationDays: number;
+  children: WbsDraftItem[];
+}
+
+export interface WbsDraftOut {
+  artifactId: string;
+  items: WbsDraftItem[];
+}
+
+export interface CharterDraftOut {
+  artifactId: string;
+  charter: CharterContent;
+}
+
 export const PROJECT_METHOD_LABEL: Record<ProjectMethod, string> = {
   predictive: "预测型",
   agile: "敏捷",

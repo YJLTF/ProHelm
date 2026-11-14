@@ -93,7 +93,7 @@ export function ProjectDetailPage() {
         )}
         {tab === "initiation" && <InitiationTab project={p} />}
         {tab === "planning" && (
-          <PlanningTab projectId={p.id} tasks={tasks.data ?? []} tasksLoading={tasks.isLoading} />
+          <PlanningTab project={p} tasks={tasks.data ?? []} tasksLoading={tasks.isLoading} />
         )}
         {tab === "execution" && <ExecutionTab projectId={p.id} tasks={tasks.data ?? []} />}
         {tab === "monitoring" && (
