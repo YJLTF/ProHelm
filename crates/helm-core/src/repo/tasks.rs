@@ -12,7 +12,7 @@ use crate::models::{
 use crate::repo::{oplog, projects};
 use crate::util;
 
-const COLS: &str = "id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, created_at, updated_at";
+const COLS: &str = "id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, created_at, updated_at";
 
 fn map_row(row: &Row) -> rusqlite::Result<Task> {
     let status: String = row.get("status")?;
@@ -33,6 +33,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Task> {
         end_date: row.get("end_date")?,
         assignee: row.get("assignee")?,
         sort_order: row.get("sort_order")?,
+        is_milestone: row.get("is_milestone")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
@@ -98,8 +99,8 @@ pub fn create(conn: &Connection, input: &CreateTaskInput) -> Result<Task> {
     let order = count_children(conn, &input.project_id, input.parent_id.as_deref())?;
     let wbs = next_wbs_code(conn, &input.project_id, input.parent_id.as_deref())?;
     conn.execute(
-        "INSERT INTO tasks (id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'todo', ?7, ?8, ?9, 0, ?10, ?11, ?12, ?13, ?14, ?14)",
+        "INSERT INTO tasks (id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'todo', ?7, ?8, ?9, 0, ?10, ?11, ?12, ?13, ?14, ?15, ?15)",
         params![
             id,
             input.project_id,
@@ -114,6 +115,7 @@ pub fn create(conn: &Connection, input: &CreateTaskInput) -> Result<Task> {
             input.end_date,
             input.assignee,
             order,
+            input.is_milestone,
             now,
         ],
     )?;
@@ -154,8 +156,9 @@ pub fn update(conn: &Connection, input: &UpdateTaskInput) -> Result<Task> {
             end_date = COALESCE(?9, end_date),
             assignee = COALESCE(?10, assignee),
             sort_order = COALESCE(?11, sort_order),
-            updated_at = ?12
-         WHERE id = ?13",
+            is_milestone = COALESCE(?12, is_milestone),
+            updated_at = ?13
+         WHERE id = ?14",
         params![
             input.title,
             input.notes,
@@ -168,6 +171,7 @@ pub fn update(conn: &Connection, input: &UpdateTaskInput) -> Result<Task> {
             input.end_date,
             input.assignee,
             input.sort_order,
+            input.is_milestone,
             now,
             input.id,
         ],

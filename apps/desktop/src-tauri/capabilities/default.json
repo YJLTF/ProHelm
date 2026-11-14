@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "主窗口默认能力（应用自有命令无需 ACL，此处授予核心 API）",
+  "description": "主窗口默认能力（应用自有命令无需 ACL，此处授予核心 API 与文件对话框）",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "dialog:default"]
 }

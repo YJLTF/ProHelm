@@ -29,6 +29,14 @@ impl From<helm_core::HelmError> for CommandError {
     }
 }
 
+impl From<serde_json::Error> for CommandError {
+    fn from(e: serde_json::Error) -> Self {
+        Self {
+            message: format!("序列化失败: {e}"),
+        }
+    }
+}
+
 type CmdResult<T> = Result<T, CommandError>;
 
 fn with_db<T>(
@@ -92,6 +100,18 @@ pub fn delete_task(state: State<AppState>, id: String) -> CmdResult<()> {
 #[tauri::command]
 pub fn get_dashboard_stats(state: State<AppState>) -> CmdResult<DashboardStats> {
     with_db(&state, |db| repo::stats::get(&db.conn))
+}
+
+// ---------- 驾驶舱扩展（S5） ----------
+
+#[tauri::command]
+pub fn get_risk_radar(state: State<AppState>) -> CmdResult<Vec<repo::stats::RiskRadarItem>> {
+    with_db(&state, |db| repo::stats::risk_radar(&db.conn, 6))
+}
+
+#[tauri::command]
+pub fn get_workload(state: State<AppState>) -> CmdResult<Vec<repo::stats::WorkloadItem>> {
+    with_db(&state, |db| repo::stats::workload(&db.conn, 8))
 }
 
 // ---------- 进度：排程 / 依赖（S2） ----------

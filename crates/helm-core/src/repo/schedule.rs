@@ -27,6 +27,7 @@ pub struct ScheduleTask {
     pub ef_days: f64,
     pub total_float_days: f64,
     pub critical: bool,
+    pub is_milestone: bool,
     pub predecessor_ids: Vec<String>,
 }
 
@@ -96,6 +97,7 @@ pub fn get(conn: &Connection, project_id: &str) -> Result<ProjectSchedule> {
                 ef_days: r.ef,
                 total_float_days: r.total_float,
                 critical: r.critical,
+                is_milestone: t.is_milestone,
                 predecessor_ids: predecessors.remove(&t.id).unwrap_or_default(),
             }
         })

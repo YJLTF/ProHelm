@@ -2,6 +2,7 @@
 
 mod ai_commands;
 mod commands;
+mod data_commands;
 
 use std::sync::Mutex;
 
@@ -14,6 +15,7 @@ pub struct AppState {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // 数据文件位置：%APPDATA%/com.prohelm.desktop/（Win）、~/Library/Application Support（mac）
             let dir = app.path().app_data_dir()?;
@@ -60,6 +62,16 @@ pub fn run() {
             ai_commands::generate_wbs_draft,
             ai_commands::list_ai_artifacts,
             ai_commands::set_artifact_status,
+            data_commands::create_backup,
+            data_commands::list_backups,
+            data_commands::delete_backup,
+            data_commands::restore_backup,
+            data_commands::export_snapshot_to,
+            data_commands::import_snapshot_from,
+            data_commands::export_project_report_to,
+            data_commands::export_tasks_csv_to,
+            commands::get_risk_radar,
+            commands::get_workload,
         ])
         .run(tauri::generate_context!())
         .expect("ProHelm 启动失败");

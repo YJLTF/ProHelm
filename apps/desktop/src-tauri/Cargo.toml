@@ -14,7 +14,10 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }
+rusqlite = { workspace = true }
+chrono = { workspace = true }
 helm-core = { path = "../../../crates/helm-core" }
 helm-ai = { path = "../../../crates/helm-ai" }

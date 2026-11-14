@@ -14,30 +14,9 @@ use helm_core::models::{AiArtifactKind, AiArtifactStatus, CharterContent};
 use helm_core::repo::{ai_artifacts, projects, risks, settings, stakeholders};
 
 use crate::AppState;
+use crate::commands::CommandError;
 
 type CmdResult<T> = Result<T, CommandError>;
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CommandError {
-    pub message: String,
-}
-
-impl From<helm_core::HelmError> for CommandError {
-    fn from(e: helm_core::HelmError) -> Self {
-        Self {
-            message: e.to_string(),
-        }
-    }
-}
-
-impl From<serde_json::Error> for CommandError {
-    fn from(e: serde_json::Error) -> Self {
-        Self {
-            message: format!("序列化失败: {e}"),
-        }
-    }
-}
 
 // ---------- 提示词（system） ----------
 

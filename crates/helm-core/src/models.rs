@@ -79,7 +79,7 @@ db_enum!(
 );
 
 /// 项目。
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
     pub id: String,
@@ -98,7 +98,7 @@ pub struct Project {
 }
 
 /// 任务（任务 = WBS 叶子工作包的最小执行单元；S2 引入层级依赖）。
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Task {
     pub id: String,
@@ -116,6 +116,8 @@ pub struct Task {
     pub end_date: Option<String>,
     pub assignee: Option<String>,
     pub sort_order: i64,
+    /// 里程碑标记：零工期的重要节点（甘特图深色呈现）
+    pub is_milestone: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -186,6 +188,8 @@ pub struct CreateTaskInput {
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub assignee: Option<String>,
+    #[serde(default)]
+    pub is_milestone: bool,
 }
 
 impl CreateTaskInput {
@@ -215,6 +219,7 @@ pub struct UpdateTaskInput {
     pub end_date: Option<String>,
     pub assignee: Option<String>,
     pub sort_order: Option<i64>,
+    pub is_milestone: Option<bool>,
 }
 
 impl UpdateTaskInput {
@@ -250,7 +255,7 @@ db_enum!(
 );
 
 /// 任务间依赖（CPM 网络的边）。
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Dependency {
     pub id: String,
@@ -307,7 +312,7 @@ pub struct ReorderTaskInput {
 }
 
 /// 计划基线：创建时刻的任务/依赖结构快照（M2 挣值管理以此为对比基准）。
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Baseline {
     pub id: String,
@@ -351,7 +356,7 @@ db_enum!(
 );
 
 /// 风险登记册条目。评分 = 概率 × 影响（1~25），由显示层计算着色。
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Risk {
     pub id: String,
@@ -445,7 +450,7 @@ impl UpdateRiskInput {
 }
 
 /// 干系人登记册条目。管理策略由权力/利益方格推导（见 `strategy_key`）。
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Stakeholder {
     pub id: String,

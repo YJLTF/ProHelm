@@ -11,6 +11,8 @@ pub mod error;
 pub mod migrations;
 pub mod models;
 pub mod repo;
+pub mod report;
+pub mod snapshot;
 pub mod tailoring;
 pub mod util;
 
@@ -25,3 +27,4 @@ pub use models::{
 };
 pub use repo::schedule::ProjectSchedule;
 pub use repo::stats::DashboardStats;
+pub use snapshot::{ImportStats, Snapshot};
