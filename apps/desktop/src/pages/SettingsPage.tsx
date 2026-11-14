@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { Bot, Database, Info, ShieldCheck } from "lucide-react";
 
 import { Badge } from "../components/ui/Badge";
@@ -176,31 +177,9 @@ export function SettingsPage() {
               <Database size={15} className="text-blue-600" /> 数据与备份
             </span>
           }
-          subtitle="本地优先 · 数据不出设备"
+          subtitle="本地优先 · 数据不出设备 · 备份为 SQLite 单文件（VACUUM INTO）"
         >
-          <div className="space-y-3 text-sm text-slate-600">
-            <p>
-              数据文件：
-              <span className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">
-                Windows: %APPDATA%\com.prohelm.desktop\prohelm.db
-              </span>
-              <span className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">
-                macOS: ~/Library/Application Support/com.prohelm.desktop/
-              </span>
-            </p>
-            <p className="text-xs text-slate-500">
-              S5 上线：每日自动快照、一键备份/恢复、JSON 全量包 / CSV / Markdown 报告导出、SQLCipher
-              整库加密开关。
-            </p>
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" disabled>
-                立即备份（S5）
-              </Button>
-              <Button variant="secondary" size="sm" disabled>
-                导出数据（S5）
-              </Button>
-            </div>
-          </div>
+          <DataSection />
         </Card>
 
         <Card
@@ -259,6 +238,146 @@ export function SettingsPage() {
           </div>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function DataSection() {
+  const qc = useQueryClient();
+  const backups = useQuery({ queryKey: ["backups"], queryFn: api.listBackups });
+  const [busy, setBusy] = useState(false);
+
+  const create = async () => {
+    setBusy(true);
+    try {
+      const info = await api.createBackup();
+      void qc.invalidateQueries({ queryKey: ["backups"] });
+      toast(`备份完成：${info.fileName}`);
+    } catch (e) {
+      toastError((e as { message?: string }).message ?? "备份失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restore = async (fileName: string) => {
+    if (!window.confirm(`恢复备份「${fileName}」将覆盖当前全部数据（恢复前会自动再备份一次）。继续？`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.restoreBackup(fileName);
+      void qc.invalidateQueries();
+      toast("已恢复备份并刷新数据");
+    } catch (e) {
+      toastError((e as { message?: string }).message ?? "恢复失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (fileName: string) => {
+    if (!window.confirm(`删除备份「${fileName}」？`)) return;
+    try {
+      await api.deleteBackup(fileName);
+      void qc.invalidateQueries({ queryKey: ["backups"] });
+    } catch (e) {
+      toastError((e as { message?: string }).message ?? "删除失败");
+    }
+  };
+
+  const exportAll = async () => {
+    try {
+      const path = await save({
+        defaultPath: `prohelm-export-${new Date().toISOString().slice(0, 10)}.json`,
+        filters: [{ name: "ProHelm 数据包", extensions: ["json"] }],
+      });
+      if (!path) return;
+      await api.exportSnapshotTo(path);
+      toast("全量数据包已导出（不含 AI 溯源与本机设置）");
+    } catch (e) {
+      toastError((e as { message?: string }).message ?? "导出失败");
+    }
+  };
+
+  const importAll = async () => {
+    try {
+      const path = await open({
+        multiple: false,
+        filters: [{ name: "ProHelm 数据包", extensions: ["json"] }],
+      });
+      if (!path) return;
+      if (
+        !window.confirm(
+          "导入将覆盖当前全部项目数据（导入前会自动备份当前库）。继续？",
+        )
+      ) {
+        return;
+      }
+      await api.createBackup();
+      const stats = await api.importSnapshotFrom(path as string);
+      void qc.invalidateQueries();
+      toast(
+        `导入完成：${stats.projects} 项目 / ${stats.tasks} 任务 / ${stats.risks} 风险 / ${stats.stakeholders} 干系人`,
+      );
+    } catch (e) {
+      toastError((e as { message?: string }).message ?? "导入失败");
+    }
+  };
+
+  return (
+    <div className="space-y-3 text-sm text-slate-600">
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => void create()} disabled={busy}>
+          立即备份
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => void exportAll()}>
+          导出全量数据包
+        </Button>
+        <Button size="sm" variant="secondary" onClick={() => void importAll()}>
+          导入数据包
+        </Button>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-semibold text-slate-500">备份历史</div>
+        {backups.isLoading ? (
+          <div className="py-2 text-center text-xs text-slate-400">加载中…</div>
+        ) : (backups.data?.length ?? 0) === 0 ? (
+          <div className="py-2 text-center text-xs text-slate-400">还没有备份</div>
+        ) : (
+          <div className="max-h-56 divide-y divide-slate-50 overflow-y-auto rounded-lg border border-slate-100">
+            {backups.data!.map((b) => (
+              <div key={b.fileName} className="flex items-center gap-2 px-3 py-2 text-xs">
+                <span className="min-w-0 flex-1 truncate font-mono text-slate-700">
+                  {b.fileName}
+                </span>
+                <span className="shrink-0 text-slate-400">
+                  {(b.sizeBytes / 1024).toFixed(0)} KB
+                </span>
+                <span className="shrink-0 text-slate-400">{b.createdAt}</span>
+                <button
+                  onClick={() => void restore(b.fileName)}
+                  className="shrink-0 text-blue-600 hover:underline"
+                >
+                  恢复
+                </button>
+                <button
+                  onClick={() => void remove(b.fileName)}
+                  className="shrink-0 text-red-500 hover:underline"
+                >
+                  删除
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <p className="text-xs leading-relaxed text-slate-500">
+        数据文件位置：%APPDATA%\com.prohelm.desktop\prohelm.db（Windows）。恢复与导入会先自动备份当前库；
+        数据包不含 AI 溯源与本机设置。S5 待办：每日自动快照、SQLCipher 整库加密开关。
+      </p>
     </div>
   );
 }

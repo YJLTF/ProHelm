@@ -4,6 +4,7 @@ import type {
   AiArtifact,
   AiArtifactStatusType,
   AiSettingsView,
+  BackupFileInfo,
   Baseline,
   CharterContent,
   CharterEnvelope,
@@ -15,11 +16,13 @@ import type {
   CreateTaskInput,
   DashboardStats,
   Dependency,
+  ImportStats,
   MoveTaskInput,
   Project,
   ProjectSchedule,
   ReorderTaskInput,
   Risk,
+  RiskRadarItem,
   Stakeholder,
   Task,
   UpdateDependencyInput,
@@ -27,6 +30,7 @@ import type {
   UpdateRiskInput,
   UpdateStakeholderInput,
   UpdateTaskInput,
+  WorkloadItem,
   WbsDraftOut,
 } from "../types";
 
@@ -112,4 +116,22 @@ export const api = {
     invoke<AiArtifact[]>("list_ai_artifacts", { projectId: projectId ?? null }),
   setArtifactStatus: (id: string, status: AiArtifactStatusType) =>
     invoke<AiArtifact>("set_artifact_status", { id, status }),
+
+  // 数据安全（S5）
+  createBackup: () => invoke<BackupFileInfo>("create_backup"),
+  listBackups: () => invoke<BackupFileInfo[]>("list_backups"),
+  deleteBackup: (fileName: string) => invoke<void>("delete_backup", { fileName }),
+  restoreBackup: (fileName: string) => invoke<void>("restore_backup", { fileName }),
+  exportSnapshotTo: (targetPath: string) =>
+    invoke<void>("export_snapshot_to", { targetPath }),
+  importSnapshotFrom: (sourcePath: string) =>
+    invoke<ImportStats>("import_snapshot_from", { sourcePath }),
+  exportProjectReportTo: (projectId: string, targetPath: string) =>
+    invoke<void>("export_project_report_to", { projectId, targetPath }),
+  exportTasksCsvTo: (projectId: string, targetPath: string) =>
+    invoke<void>("export_tasks_csv_to", { projectId, targetPath }),
+
+  // 驾驶舱扩展（S5）
+  riskRadar: () => invoke<RiskRadarItem[]>("get_risk_radar"),
+  workload: () => invoke<WorkloadItem[]>("get_workload"),
 };

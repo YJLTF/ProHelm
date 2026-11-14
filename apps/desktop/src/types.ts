@@ -60,6 +60,8 @@ export interface Task {
   endDate: string | null;
   assignee: string | null;
   sortOrder: number;
+  /** 里程碑标记：零工期的重要节点 */
+  isMilestone: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +77,7 @@ export interface CreateTaskInput {
   startDate?: string | null;
   endDate?: string | null;
   assignee?: string | null;
+  isMilestone?: boolean;
 }
 
 export interface UpdateTaskInput {
@@ -90,6 +93,7 @@ export interface UpdateTaskInput {
   endDate?: string | null;
   assignee?: string | null;
   sortOrder?: number;
+  isMilestone?: boolean;
 }
 
 export interface DashboardStats {
@@ -153,6 +157,7 @@ export interface ScheduleTask {
   efDays: number;
   totalFloatDays: number;
   critical: boolean;
+  isMilestone: boolean;
   predecessorIds: string[];
 }
 
@@ -398,6 +403,45 @@ export interface WbsDraftOut {
 export interface CharterDraftOut {
   artifactId: string;
   charter: CharterContent;
+}
+
+// ---------- S5：数据安全 / 驾驶舱扩展 ----------
+
+export interface BackupFileInfo {
+  fileName: string;
+  path: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface ImportStats {
+  projects: number;
+  tasks: number;
+  dependencies: number;
+  risks: number;
+  stakeholders: number;
+  charters: number;
+  baselines: number;
+}
+
+export interface RiskRadarItem {
+  riskId: string;
+  projectId: string;
+  projectName: string;
+  riskNo: number;
+  title: string;
+  probability: number;
+  impact: number;
+  owner: string | null;
+  status: "open" | "occurred" | "closed";
+}
+
+export interface WorkloadItem {
+  assignee: string;
+  projectCount: number;
+  taskCount: number;
+  estimateHours: number;
+  overdue: number;
 }
 
 export const PROJECT_METHOD_LABEL: Record<ProjectMethod, string> = {

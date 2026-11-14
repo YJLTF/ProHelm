@@ -38,6 +38,7 @@ interface FormState {
   startDate: string;
   endDate: string;
   assignee: string;
+  isMilestone: boolean;
 }
 
 const EMPTY: FormState = {
@@ -51,6 +52,7 @@ const EMPTY: FormState = {
   startDate: "",
   endDate: "",
   assignee: "",
+  isMilestone: false,
 };
 
 export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Props) {
@@ -74,6 +76,7 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
         startDate: initial.startDate ?? "",
         endDate: initial.endDate ?? "",
         assignee: initial.assignee ?? "",
+        isMilestone: initial.isMilestone,
       });
     } else {
       setForm(EMPTY);
@@ -100,6 +103,7 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         assignee: form.assignee || null,
+        isMilestone: form.isMilestone,
       };
       update.mutate(payload, {
         onSuccess: () => {
@@ -119,6 +123,7 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
         startDate: form.startDate || null,
         endDate: form.endDate || null,
         assignee: form.assignee || null,
+        isMilestone: form.isMilestone,
       };
       create.mutate(payload, {
         onSuccess: (task) => {
@@ -220,6 +225,18 @@ export function TaskFormDialog({ projectId, tasks, open, initial, onClose }: Pro
               value={form.durationDays}
               onChange={(e) => set({ durationDays: e.target.value })}
             />
+          </div>
+          <div className="col-span-2 flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={form.isMilestone}
+              onChange={(e) => {
+                const on = e.target.checked;
+                set({ isMilestone: on, durationDays: on ? "0" : form.durationDays });
+              }}
+              className="accent-blue-600"
+            />
+            标记为里程碑（零工期的重要节点，甘特图深色显示）
           </div>
           <div>
             <Label>预估工时（小时）</Label>

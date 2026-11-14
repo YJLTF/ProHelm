@@ -122,14 +122,15 @@ export function TaskList({ projectId, tasks, loading }: Props) {
               )}
               style={{ marginLeft: depthOf(t) * 20 }}
             >
-              <span className="w-12 shrink-0 font-mono text-xs text-slate-400">{t.wbsCode}</span>
-              <button
-                className="min-w-0 flex-1 truncate text-left text-sm text-slate-800 hover:text-blue-700"
-                title="点击编辑"
-                onClick={() => setEditing(t)}
-              >
-                {t.title}
-              </button>
+            <span className="w-12 shrink-0 font-mono text-xs text-slate-400">{t.wbsCode}</span>
+            <button
+              className="min-w-0 flex-1 truncate text-left text-sm text-slate-800 hover:text-blue-700"
+              title={t.isMilestone ? `里程碑：${t.title}` : "点击编辑"}
+              onClick={() => setEditing(t)}
+            >
+              {t.isMilestone && <span className="mr-1 text-slate-500">◆</span>}
+              {t.title}
+            </button>
               <Badge tone={priorityTone(t.priority)}>{TASK_PRIORITY_LABEL[t.priority]}</Badge>
               {t.assignee && <span className="shrink-0 text-xs text-slate-500">{t.assignee}</span>}
               <span className="w-20 shrink-0 text-right text-xs text-slate-400">

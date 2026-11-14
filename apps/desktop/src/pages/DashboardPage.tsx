@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -7,12 +8,18 @@ import {
   FolderKanban,
   Rocket,
   TrendingUp,
+  TriangleAlert,
+  Users,
 } from "lucide-react";
 
 import { ProjectCard } from "../components/projects/ProjectCard";
+import { Card } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
+import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
+import { api } from "../lib/ipc";
 import { useDashboardStats, useProjects } from "../hooks/useProjects";
+import { riskScoreTone } from "../types";
 import type { DashboardStats } from "../types";
 
 interface StatDef {
@@ -33,6 +40,8 @@ const statDefs: StatDef[] = [
 export function DashboardPage() {
   const stats = useDashboardStats();
   const projects = useProjects();
+  const radar = useQuery({ queryKey: ["risk-radar"], queryFn: api.riskRadar });
+  const workload = useQuery({ queryKey: ["workload"], queryFn: api.workload });
 
   if (stats.isLoading || projects.isLoading) {
     return <div className="p-8 text-sm text-slate-500">加载中…</div>;
@@ -64,6 +73,72 @@ export function DashboardPage() {
             <div className="mt-1 text-[11px] text-slate-400">{hint}</div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <Card
+          title={
+            <span className="flex items-center gap-1.5">
+              <TriangleAlert size={13} className="text-rose-500" /> 风险雷达（跨项目）
+            </span>
+          }
+          subtitle="未关闭风险按评分降序 · 对应 PMBOK 8 风险绩效域"
+        >
+          {radar.isLoading ? (
+            <div className="py-2 text-center text-xs text-slate-400">加载中…</div>
+          ) : (radar.data?.length ?? 0) === 0 ? (
+            <div className="py-2 text-center text-xs text-slate-400">没有未关闭的风险</div>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {radar.data!.map((r) => (
+                <Link
+                  key={r.riskId}
+                  to={`/projects/${r.projectId}`}
+                  className="flex items-center gap-2 py-2 text-sm hover:text-blue-700"
+                >
+                  <Badge tone={riskScoreTone(r.probability * r.impact)}>
+                    {r.probability * r.impact}
+                  </Badge>
+                  <span className="min-w-0 flex-1 truncate text-slate-700">
+                    <span className="text-xs text-slate-400">R{r.riskNo} {r.projectName} · </span>
+                    {r.title}
+                  </span>
+                  {r.owner && <span className="shrink-0 text-xs text-slate-500">{r.owner}</span>}
+                  {r.status === "occurred" && <Badge tone="red">已发生</Badge>}
+                </Link>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card
+          title={
+            <span className="flex items-center gap-1.5">
+              <Users size={13} className="text-blue-500" /> 人员负荷
+            </span>
+          }
+          subtitle="按负责人聚合 · 逾期任务标红"
+        >
+          {workload.isLoading ? (
+            <div className="py-2 text-center text-xs text-slate-400">加载中…</div>
+          ) : (workload.data?.length ?? 0) === 0 ? (
+            <div className="py-2 text-center text-xs text-slate-400">
+              还没有分配负责人（在任务表单中填写）
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {workload.data!.map((w) => (
+                <div key={w.assignee} className="flex items-center gap-2 py-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate text-slate-700">{w.assignee}</span>
+                  <span className="text-xs text-slate-400">
+                    {w.projectCount} 项目 · {w.taskCount} 任务 · {w.estimateHours}h
+                  </span>
+                  {w.overdue > 0 && <Badge tone="red">逾期 {w.overdue}</Badge>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
 
       <div className="mt-6 mb-2 flex items-center gap-2">

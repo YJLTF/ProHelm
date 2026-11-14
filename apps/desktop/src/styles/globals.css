@@ -27,7 +27,7 @@ body {
   background: rgb(148 163 184);
 }
 
-/* frappe-gantt：关键路径（红）与浮动任务（浅蓝）配色 */
+/* frappe-gantt：关键路径（红）/浮动任务（浅蓝）/里程碑（深色）配色 */
 .gantt .bar-wrapper.bar-critical .bar {
   fill: #e11d48;
 }
@@ -36,4 +36,11 @@ body {
 }
 .gantt .bar-wrapper.bar-float .bar {
   fill: #93c5fd;
+}
+.gantt .bar-wrapper.bar-milestone .bar {
+  fill: #0f172a;
+}
+.gantt .bar-wrapper.bar-milestone .bar-label {
+  fill: #0f172a;
+  font-weight: 700;
 }

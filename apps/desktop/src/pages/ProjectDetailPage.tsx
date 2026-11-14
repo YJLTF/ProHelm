@@ -97,7 +97,7 @@ export function ProjectDetailPage() {
         )}
         {tab === "execution" && <ExecutionTab projectId={p.id} tasks={tasks.data ?? []} />}
         {tab === "monitoring" && (
-          <MonitoringTab projectId={p.id} tasks={tasks.data ?? []} />
+          <MonitoringTab project={p} tasks={tasks.data ?? []} />
         )}
         {tab === "closing" && <ClosingTab project={p} />}
       </div>

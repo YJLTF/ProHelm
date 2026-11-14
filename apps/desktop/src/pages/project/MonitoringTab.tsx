@@ -1,13 +1,24 @@
 import type { ReactNode } from "react";
-import { AlertTriangle, BarChart3, CalendarClock, CheckCircle2, Flag } from "lucide-react";
+import { save } from "@tauri-apps/plugin-dialog";
+import {
+  AlertTriangle,
+  BarChart3,
+  CalendarClock,
+  CheckCircle2,
+  FileDown,
+  Flag,
+  Table2,
+} from "lucide-react";
 
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { api } from "../../lib/ipc";
 import { useBaselines, useCreateBaseline } from "../../hooks/useProjects";
-import type { Task } from "../../types";
+import { toast, toastError } from "../../store/toast";
+import type { Project, Task } from "../../types";
 
 interface Props {
-  projectId: string;
+  project: Project;
   tasks: Task[];
 }
 
@@ -24,7 +35,8 @@ function addDays(iso: string, days: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export function MonitoringTab({ projectId, tasks }: Props) {
+export function MonitoringTab({ project, tasks }: Props) {
+  const projectId = project.id;
   const today = todayStr();
   const weekLater = addDays(today, 7);
   const open = tasks.filter((t) => t.status !== "done");
@@ -93,6 +105,56 @@ export function MonitoringTab({ projectId, tasks }: Props) {
             ))}
           </div>
         )}
+      </Card>
+
+      <Card
+        title="报告与导出"
+        subtitle="项目报告（Markdown，含章程/干系人/风险/任务进度/基线）与任务清单 CSV"
+      >
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              void (async () => {
+                try {
+                  const path = await save({
+                    defaultPath: `项目报告-${project.name}.md`,
+                    filters: [{ name: "Markdown", extensions: ["md"] }],
+                  });
+                  if (!path) return;
+                  await api.exportProjectReportTo(projectId, path);
+                  toast("项目报告已导出");
+                } catch (e) {
+                  toastError((e as { message?: string }).message ?? "导出失败");
+                }
+              })()
+            }
+          >
+            <FileDown size={13} /> 导出项目报告
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              void (async () => {
+                try {
+                  const path = await save({
+                    defaultPath: `任务清单-${project.name}.csv`,
+                    filters: [{ name: "CSV", extensions: ["csv"] }],
+                  });
+                  if (!path) return;
+                  await api.exportTasksCsvTo(projectId, path);
+                  toast("任务 CSV 已导出");
+                } catch (e) {
+                  toastError((e as { message?: string }).message ?? "导出失败");
+                }
+              })()
+            }
+          >
+            <Table2 size={13} /> 导出任务 CSV
+          </Button>
+        </div>
       </Card>
 
       <Card

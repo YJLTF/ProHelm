@@ -32,7 +32,7 @@ export function GanttView({ projectId }: Props) {
     el.innerHTML = "";
     const ganttTasks = data.tasks.map((t) => ({
       id: t.taskId,
-      name: `${t.wbsCode ?? ""} ${t.title}`.trim(),
+      name: `${t.wbsCode ?? ""} ${t.isMilestone ? "◆ " : ""}${t.title}`.trim(),
       start: t.startDate,
       end: t.endDate,
       progress: 0,
