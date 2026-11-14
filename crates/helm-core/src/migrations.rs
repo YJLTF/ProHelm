@@ -14,6 +14,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("../migrations/0001_init.sql")),
     (2, include_str!("../migrations/0002_schedule.sql")),
     (3, include_str!("../migrations/0003_artifacts.sql")),
+    (4, include_str!("../migrations/0004_ai.sql")),
 ];
 
 const BOOTSTRAP_SQL: &str = "CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -55,6 +56,6 @@ mod tests {
                 r.get(0)
             })
             .unwrap();
-        assert_eq!(v, 3);
+        assert_eq!(v, 4);
     }
 }

@@ -1,5 +1,6 @@
 //! 仓库层：SQL 与领域对象的唯一边界。
 
+pub mod ai_artifacts;
 pub mod baselines;
 pub mod charters;
 pub mod dependencies;
@@ -7,6 +8,7 @@ pub mod oplog;
 pub mod projects;
 pub mod risks;
 pub mod schedule;
+pub mod settings;
 pub mod stakeholders;
 pub mod stats;
 pub mod tasks;

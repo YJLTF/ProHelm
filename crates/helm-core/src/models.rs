@@ -558,3 +558,36 @@ pub struct CharterEnvelope {
     pub updated_at: String,
     pub created: bool,
 }
+
+// ---------- S4：AI 生成溯源 ----------
+
+db_enum!(
+    /// AI 生成类型。
+    AiArtifactKind, default(Coach => "coach"), {
+        CharterDraft => "charter_draft",
+        WbsDraft => "wbs_draft",
+    }
+);
+
+db_enum!(
+    /// AI 生成结果状态：草稿（未处理）/ 已采纳 / 已弃用。
+    AiArtifactStatus, default(Draft => "draft"), {
+        Adopted => "adopted",
+        Discarded => "discarded",
+    }
+);
+
+/// AI 生成记录（溯源）：支撑"可溯源、可拒绝、可撤销"。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiArtifact {
+    pub id: String,
+    pub project_id: Option<String>,
+    pub kind: AiArtifactKind,
+    pub provider: String,
+    pub model: String,
+    pub input_summary: String,
+    pub output: String,
+    pub status: AiArtifactStatus,
+    pub created_at: String,
+}

@@ -17,3 +17,4 @@ tauri = { version = "2", features = [] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 helm-core = { path = "../../../crates/helm-core" }
+helm-ai = { path = "../../../crates/helm-ai" }

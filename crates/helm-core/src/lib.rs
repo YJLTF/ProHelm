@@ -16,12 +16,12 @@ pub mod util;
 
 pub use error::{HelmError, Result};
 pub use models::{
-    Baseline, CharterContent, CharterEnvelope, CreateDependencyInput, CreateProjectInput,
-    CreateRiskInput, CreateStakeholderInput, CreateTaskInput, Dependency, DependencyType,
-    MoveTaskInput, Project, ProjectMethod, ProjectStatus, ReorderTaskInput, ResponseStrategy, Risk,
-    RiskCategory, RiskStatus, Stakeholder, Task, TaskMoveDirection, TaskPriority, TaskStatus,
-    UpdateDependencyInput, UpdateProjectInput, UpdateRiskInput, UpdateStakeholderInput,
-    UpdateTaskInput,
+    AiArtifact, AiArtifactKind, AiArtifactStatus, Baseline, CharterContent, CharterEnvelope,
+    CreateDependencyInput, CreateProjectInput, CreateRiskInput, CreateStakeholderInput,
+    CreateTaskInput, Dependency, DependencyType, MoveTaskInput, Project, ProjectMethod,
+    ProjectStatus, ReorderTaskInput, ResponseStrategy, Risk, RiskCategory, RiskStatus, Stakeholder,
+    Task, TaskMoveDirection, TaskPriority, TaskStatus, UpdateDependencyInput, UpdateProjectInput,
+    UpdateRiskInput, UpdateStakeholderInput, UpdateTaskInput,
 };
 pub use repo::schedule::ProjectSchedule;
 pub use repo::stats::DashboardStats;

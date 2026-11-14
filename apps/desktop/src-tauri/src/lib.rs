@@ -1,5 +1,6 @@
-//! Tauri 壳层：只做状态装配与命令注册，业务逻辑全部在 helm-core。
+//! Tauri 壳层：只做状态装配与命令注册，业务逻辑全部在 helm-core / helm-ai。
 
+mod ai_commands;
 mod commands;
 
 use std::sync::Mutex;
@@ -51,6 +52,14 @@ pub fn run() {
             commands::save_charter,
             commands::set_tailored,
             commands::apply_recommended_tailoring,
+            ai_commands::get_ai_settings,
+            ai_commands::set_ai_settings,
+            ai_commands::test_ai_connection,
+            ai_commands::coach_ask,
+            ai_commands::generate_charter_draft,
+            ai_commands::generate_wbs_draft,
+            ai_commands::list_ai_artifacts,
+            ai_commands::set_artifact_status,
         ])
         .run(tauri::generate_context!())
         .expect("ProHelm 启动失败");
