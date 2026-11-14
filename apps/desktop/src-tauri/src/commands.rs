@@ -1,8 +1,10 @@
 //! 类型化 Tauri 命令：薄封装 helm-core 仓库层，统一错误为可序列化结构。
 
-use helm_core::repo::{self, stats::DashboardStats};
+use helm_core::repo::{self, baselines, dependencies, schedule, stats::DashboardStats};
 use helm_core::{
-    CreateProjectInput, CreateTaskInput, Project, Task, UpdateProjectInput, UpdateTaskInput,
+    Baseline, CreateDependencyInput, CreateProjectInput, CreateTaskInput, Dependency,
+    MoveTaskInput, Project, ProjectSchedule, ReorderTaskInput, Task, UpdateDependencyInput,
+    UpdateProjectInput, UpdateTaskInput,
 };
 use serde::Serialize;
 use tauri::State;
@@ -87,4 +89,62 @@ pub fn delete_task(state: State<AppState>, id: String) -> CmdResult<()> {
 #[tauri::command]
 pub fn get_dashboard_stats(state: State<AppState>) -> CmdResult<DashboardStats> {
     with_db(&state, |db| repo::stats::get(&db.conn))
+}
+
+// ---------- 进度：排程 / 依赖（S2） ----------
+
+#[tauri::command]
+pub fn get_schedule(state: State<AppState>, project_id: String) -> CmdResult<ProjectSchedule> {
+    with_db(&state, |db| schedule::get(&db.conn, &project_id))
+}
+
+#[tauri::command]
+pub fn create_dependency(
+    state: State<AppState>,
+    input: CreateDependencyInput,
+) -> CmdResult<Dependency> {
+    with_db(&state, |db| dependencies::create(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn update_dependency(
+    state: State<AppState>,
+    input: UpdateDependencyInput,
+) -> CmdResult<Dependency> {
+    with_db(&state, |db| dependencies::update(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn delete_dependency(state: State<AppState>, id: String) -> CmdResult<()> {
+    with_db(&state, |db| dependencies::delete(&db.conn, &id))
+}
+
+// ---------- WBS 重排（S2） ----------
+
+#[tauri::command]
+pub fn move_task(state: State<AppState>, input: MoveTaskInput) -> CmdResult<Task> {
+    with_db(&state, |db| repo::tasks::move_task(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn reorder_task(state: State<AppState>, input: ReorderTaskInput) -> CmdResult<Task> {
+    with_db(&state, |db| repo::tasks::reorder_task(&db.conn, &input))
+}
+
+// ---------- 基线（S2） ----------
+
+#[tauri::command]
+pub fn create_baseline(
+    state: State<AppState>,
+    project_id: String,
+    name: String,
+) -> CmdResult<Baseline> {
+    with_db(&state, |db| baselines::create(&db.conn, &project_id, &name))
+}
+
+#[tauri::command]
+pub fn list_baselines(state: State<AppState>, project_id: String) -> CmdResult<Vec<Baseline>> {
+    with_db(&state, |db| {
+        baselines::list_by_project(&db.conn, &project_id)
+    })
 }

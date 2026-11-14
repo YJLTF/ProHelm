@@ -108,6 +108,7 @@ pub struct Task {
     pub status: TaskStatus,
     pub priority: TaskPriority,
     pub estimate_hours: f64,
+    pub duration_days: f64,
     pub actual_hours: f64,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
@@ -178,6 +179,8 @@ pub struct CreateTaskInput {
     pub priority: TaskPriority,
     #[serde(default)]
     pub estimate_hours: f64,
+    #[serde(default = "default_duration_days")]
+    pub duration_days: f64,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
     pub assignee: Option<String>,
@@ -204,6 +207,7 @@ pub struct UpdateTaskInput {
     pub status: Option<TaskStatus>,
     pub priority: Option<TaskPriority>,
     pub estimate_hours: Option<f64>,
+    pub duration_days: Option<f64>,
     pub actual_hours: Option<f64>,
     pub start_date: Option<String>,
     pub end_date: Option<String>,
@@ -219,10 +223,94 @@ impl UpdateTaskInput {
             return Err(HelmError::Validation("任务标题不能为空".into()));
         }
         if self.estimate_hours.is_some_and(|v| v < 0.0)
+            || self.duration_days.is_some_and(|v| v < 0.0)
             || self.actual_hours.is_some_and(|v| v < 0.0)
         {
-            return Err(HelmError::Validation("工时不能为负数".into()));
+            return Err(HelmError::Validation("工时/工期不能为负数".into()));
         }
         Ok(())
     }
+}
+
+fn default_duration_days() -> f64 {
+    1.0
+}
+
+// ---------- S2：进度（依赖与工期）、WBS 重排、基线 ----------
+
+db_enum!(
+    /// 依赖类型：FS 完成后开始 / SS 开始后开始 / FF 完成后完成 / SF 开始后完成。
+    DependencyType, default(Fs => "fs"), {
+        Ss => "ss",
+        Ff => "ff",
+        Sf => "sf",
+    }
+);
+
+/// 任务间依赖（CPM 网络的边）。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Dependency {
+    pub id: String,
+    pub project_id: String,
+    pub predecessor_id: String,
+    pub successor_id: String,
+    pub dep_type: DependencyType,
+    pub lag_days: f64,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateDependencyInput {
+    pub project_id: String,
+    pub predecessor_id: String,
+    pub successor_id: String,
+    #[serde(default)]
+    pub dep_type: DependencyType,
+    #[serde(default)]
+    pub lag_days: f64,
+}
+
+/// 部分更新：`None` 表示不修改该字段。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateDependencyInput {
+    pub id: String,
+    pub dep_type: Option<DependencyType>,
+    pub lag_days: Option<f64>,
+}
+
+/// WBS 重排：把任务移动到新的父级（`None` = 升到顶层，追加为末位）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MoveTaskInput {
+    pub task_id: String,
+    pub new_parent_id: Option<String>,
+}
+
+db_enum!(
+    /// 同级排序方向。
+    TaskMoveDirection, default(Up => "up"), {
+        Down => "down",
+    }
+);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReorderTaskInput {
+    pub task_id: String,
+    #[serde(default)]
+    pub direction: TaskMoveDirection,
+}
+
+/// 计划基线：创建时刻的任务/依赖结构快照（M2 挣值管理以此为对比基准）。
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Baseline {
+    pub id: String,
+    pub project_id: String,
+    pub name: String,
+    pub snapshot: String,
+    pub created_at: String,
 }

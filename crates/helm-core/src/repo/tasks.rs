@@ -1,13 +1,18 @@
 //! 任务仓库：CRUD + 自动 WBS 编码 + OpLog 记录。
 
+use std::collections::{HashMap, VecDeque};
+
 use rusqlite::{Connection, Row, params};
 
 use crate::error::{HelmError, Result};
-use crate::models::{CreateTaskInput, Task, TaskPriority, TaskStatus, UpdateTaskInput};
+use crate::models::{
+    CreateTaskInput, MoveTaskInput, ReorderTaskInput, Task, TaskMoveDirection, TaskPriority,
+    TaskStatus, UpdateTaskInput,
+};
 use crate::repo::{oplog, projects};
 use crate::util;
 
-const COLS: &str = "id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, actual_hours, start_date, end_date, assignee, sort_order, created_at, updated_at";
+const COLS: &str = "id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, created_at, updated_at";
 
 fn map_row(row: &Row) -> rusqlite::Result<Task> {
     let status: String = row.get("status")?;
@@ -22,6 +27,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Task> {
         status: TaskStatus::parse(&status).map_err(crate::repo::enum_conversion_error)?,
         priority: TaskPriority::parse(&priority).map_err(crate::repo::enum_conversion_error)?,
         estimate_hours: row.get("estimate_hours")?,
+        duration_days: row.get("duration_days")?,
         actual_hours: row.get("actual_hours")?,
         start_date: row.get("start_date")?,
         end_date: row.get("end_date")?,
@@ -92,8 +98,8 @@ pub fn create(conn: &Connection, input: &CreateTaskInput) -> Result<Task> {
     let order = count_children(conn, &input.project_id, input.parent_id.as_deref())?;
     let wbs = next_wbs_code(conn, &input.project_id, input.parent_id.as_deref())?;
     conn.execute(
-        "INSERT INTO tasks (id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, actual_hours, start_date, end_date, assignee, sort_order, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'todo', ?7, ?8, 0, ?9, ?10, ?11, ?12, ?13, ?13)",
+        "INSERT INTO tasks (id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'todo', ?7, ?8, ?9, 0, ?10, ?11, ?12, ?13, ?14, ?14)",
         params![
             id,
             input.project_id,
@@ -103,6 +109,7 @@ pub fn create(conn: &Connection, input: &CreateTaskInput) -> Result<Task> {
             input.notes,
             input.priority,
             input.estimate_hours,
+            input.duration_days,
             input.start_date,
             input.end_date,
             input.assignee,
@@ -141,19 +148,21 @@ pub fn update(conn: &Connection, input: &UpdateTaskInput) -> Result<Task> {
             status = COALESCE(?3, status),
             priority = COALESCE(?4, priority),
             estimate_hours = COALESCE(?5, estimate_hours),
-            actual_hours = COALESCE(?6, actual_hours),
-            start_date = COALESCE(?7, start_date),
-            end_date = COALESCE(?8, end_date),
-            assignee = COALESCE(?9, assignee),
-            sort_order = COALESCE(?10, sort_order),
-            updated_at = ?11
-         WHERE id = ?12",
+            duration_days = COALESCE(?6, duration_days),
+            actual_hours = COALESCE(?7, actual_hours),
+            start_date = COALESCE(?8, start_date),
+            end_date = COALESCE(?9, end_date),
+            assignee = COALESCE(?10, assignee),
+            sort_order = COALESCE(?11, sort_order),
+            updated_at = ?12
+         WHERE id = ?13",
         params![
             input.title,
             input.notes,
             input.status,
             input.priority,
             input.estimate_hours,
+            input.duration_days,
             input.actual_hours,
             input.start_date,
             input.end_date,
@@ -182,4 +191,150 @@ pub fn delete(conn: &Connection, id: &str) -> Result<()> {
         return Err(not_found(id));
     }
     oplog::record(conn, "task", id, "delete", "{}")
+}
+
+// ---------- S2：WBS 重排与结构维护 ----------
+
+/// 收集任务的全部后代 id（防环校验用）。
+fn descendant_ids(conn: &Connection, task_id: &str) -> Result<Vec<String>> {
+    let mut result = Vec::new();
+    let mut stack = vec![task_id.to_string()];
+    while let Some(current) = stack.pop() {
+        let mut stmt = conn.prepare("SELECT id FROM tasks WHERE parent_id = ?1")?;
+        let children: Vec<String> = stmt
+            .query_map(params![current], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        drop(stmt);
+        for child in children {
+            stack.push(child.clone());
+            result.push(child);
+        }
+    }
+    Ok(result)
+}
+
+/// 全项目 WBS 重编号：按 sort_order → created_at 的兄弟顺序逐层编号。
+/// 结构变化（移动/重排）后调用，保证编码始终与树形一致。
+fn renumber_wbs(conn: &Connection, project_id: &str) -> Result<()> {
+    let all = list_by_project(conn, project_id)?;
+    // 以 "" 作为根层键
+    let mut children: HashMap<String, Vec<&Task>> = HashMap::new();
+    for t in &all {
+        children
+            .entry(t.parent_id.clone().unwrap_or_default())
+            .or_default()
+            .push(t);
+    }
+    for list in children.values_mut() {
+        list.sort_by(|a, b| {
+            (a.sort_order, a.created_at.as_str()).cmp(&(b.sort_order, b.created_at.as_str()))
+        });
+    }
+
+    let mut updates: Vec<(String, String)> = Vec::new();
+    let mut queue: VecDeque<(&Task, String)> = VecDeque::new();
+    let roots = children.get("").cloned().unwrap_or_default();
+    for (idx, t) in roots.iter().enumerate() {
+        queue.push_back((t, (idx + 1).to_string()));
+    }
+    while let Some((t, code)) = queue.pop_front() {
+        updates.push((t.id.clone(), code.clone()));
+        if let Some(kids) = children.get(&t.id) {
+            for (idx, kid) in kids.iter().enumerate() {
+                queue.push_back((kid, format!("{code}.{}", idx + 1)));
+            }
+        }
+    }
+
+    let tx = conn.unchecked_transaction()?;
+    for (id, code) in &updates {
+        tx.execute(
+            "UPDATE tasks SET wbs_code = ?1 WHERE id = ?2",
+            params![code, id],
+        )?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// WBS 重排：移动任务到新父级（`None` = 顶层末位）。
+pub fn move_task(conn: &Connection, input: &MoveTaskInput) -> Result<Task> {
+    let task = get(conn, &input.task_id)?;
+    let project_id = task.project_id.clone();
+    if let Some(new_parent) = &input.new_parent_id {
+        if new_parent == &task.id {
+            return Err(HelmError::Validation("任务不能移动到自身之下".into()));
+        }
+        let parent = get(conn, new_parent)?;
+        if parent.project_id != project_id {
+            return Err(HelmError::Validation("父任务必须属于同一个项目".into()));
+        }
+        if descendant_ids(conn, &task.id)?
+            .iter()
+            .any(|d| d == new_parent)
+        {
+            return Err(HelmError::Validation(
+                "不能把任务移动到自己的子任务之下".into(),
+            ));
+        }
+    }
+
+    let order = count_children(conn, &project_id, input.new_parent_id.as_deref())?;
+    conn.execute(
+        "UPDATE tasks SET parent_id = ?1, sort_order = ?2, updated_at = ?3 WHERE id = ?4",
+        params![input.new_parent_id, order, util::now_iso(), task.id],
+    )?;
+    oplog::record(
+        conn,
+        "task",
+        &task.id,
+        "move",
+        &serde_json::to_string(input)?,
+    )?;
+    renumber_wbs(conn, &project_id)?;
+    get(conn, &task.id)
+}
+
+/// 同级排序：上移 / 下移一位。
+pub fn reorder_task(conn: &Connection, input: &ReorderTaskInput) -> Result<Task> {
+    let task = get(conn, &input.task_id)?;
+    let all = list_by_project(conn, &task.project_id)?;
+    let siblings: Vec<&Task> = all
+        .iter()
+        .filter(|t| t.parent_id == task.parent_id)
+        .collect();
+    let idx = siblings
+        .iter()
+        .position(|t| t.id == task.id)
+        .ok_or_else(|| HelmError::Validation("任务排序状态异常".into()))?;
+    let target_idx = match input.direction {
+        TaskMoveDirection::Up if idx > 0 => Some(idx - 1),
+        TaskMoveDirection::Down if idx + 1 < siblings.len() => Some(idx + 1),
+        _ => None,
+    };
+    let Some(target_idx) = target_idx else {
+        return Ok(task); // 已在边界，无需移动
+    };
+    let target = siblings[target_idx].clone();
+
+    let now = util::now_iso();
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
+        "UPDATE tasks SET sort_order = ?1, updated_at = ?2 WHERE id = ?3",
+        params![target.sort_order, now, task.id],
+    )?;
+    tx.execute(
+        "UPDATE tasks SET sort_order = ?1, updated_at = ?2 WHERE id = ?3",
+        params![task.sort_order, now, target.id],
+    )?;
+    tx.commit()?;
+    oplog::record(
+        conn,
+        "task",
+        &task.id,
+        "reorder",
+        &serde_json::to_string(input)?,
+    )?;
+    renumber_wbs(conn, &task.project_id)?;
+    get(conn, &task.id)
 }

@@ -5,6 +5,7 @@
 //! - 未来移动端 / CLI / MCP 复用本 crate；
 //! - 所有写操作可扩展为 OpLog 事件（M3 同步的基础，见 0001 迁移注释）。
 
+pub mod cpm;
 pub mod db;
 pub mod error;
 pub mod migrations;
@@ -14,7 +15,10 @@ pub mod util;
 
 pub use error::{HelmError, Result};
 pub use models::{
-    CreateProjectInput, CreateTaskInput, Project, ProjectMethod, ProjectStatus, Task, TaskPriority,
-    TaskStatus, UpdateProjectInput, UpdateTaskInput,
+    Baseline, CreateDependencyInput, CreateProjectInput, CreateTaskInput, Dependency,
+    DependencyType, MoveTaskInput, Project, ProjectMethod, ProjectStatus, ReorderTaskInput, Task,
+    TaskMoveDirection, TaskPriority, TaskStatus, UpdateDependencyInput, UpdateProjectInput,
+    UpdateTaskInput,
 };
+pub use repo::schedule::ProjectSchedule;
 pub use repo::stats::DashboardStats;

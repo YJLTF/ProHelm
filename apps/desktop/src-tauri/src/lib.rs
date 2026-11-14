@@ -31,6 +31,14 @@ pub fn run() {
             commands::update_task,
             commands::delete_task,
             commands::get_dashboard_stats,
+            commands::get_schedule,
+            commands::create_dependency,
+            commands::update_dependency,
+            commands::delete_dependency,
+            commands::move_task,
+            commands::reorder_task,
+            commands::create_baseline,
+            commands::list_baselines,
         ])
         .run(tauri::generate_context!())
         .expect("ProHelm 启动失败");
