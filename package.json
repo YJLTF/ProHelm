@@ -1,0 +1,18 @@
+{
+  "name": "prohelm",
+  "private": true,
+  "version": "0.1.0",
+  "description": "ProHelm（项舵）- 基于 PMP 体系的 AI 原生本地优先项目管理桌面应用",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @prohelm/desktop dev",
+    "build": "pnpm --filter @prohelm/desktop build",
+    "typecheck": "pnpm --filter @prohelm/desktop typecheck",
+    "lint": "cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings",
+    "rust:check": "cargo check --workspace",
+    "rust:test": "cargo test -p helm-core"
+  }
+}

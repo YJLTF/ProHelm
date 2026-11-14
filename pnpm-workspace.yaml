@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# 允许执行构建脚本的依赖（pnpm 11+ 用 allowBuilds 取代 onlyBuiltDependencies）
+allowBuilds:
+  esbuild: true

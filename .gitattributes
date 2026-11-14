@@ -1,0 +1,7 @@
+# 统一使用 LF（CI 在 Linux 运行；Windows 下由编辑器/工具链处理）
+* text=auto eol=lf
+
+# Windows 专属文件保留 CRLF
+*.ico binary
+*.png binary
+*.exe binary
