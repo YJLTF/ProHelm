@@ -219,6 +219,8 @@ export function SettingsPage() {
           )}
         </Card>
 
+        <TelemetryCard />
+
         <Card
           title={
             <span className="flex items-center gap-2">
@@ -411,8 +413,70 @@ function DataSection() {
 
       <p className="text-xs leading-relaxed text-slate-500">
         数据文件位置：%APPDATA%\com.prohelm.desktop\prohelm.db（Windows）。恢复与导入会先自动备份当前库；
-        数据包不含 AI 溯源与本机设置。S5 待办：每日自动快照、SQLCipher 整库加密开关。
+        数据包不含 AI 溯源与本机设置。每日自动快照已上线（见上方开关）；SQLCipher 整库加密按路线图排期。
       </p>
     </div>
+  );
+}
+
+/** 内测诊断统计：本地聚合，主动复制反馈；无任何自动上报。 */
+function TelemetryCard() {
+  const t = useQuery({ queryKey: ["telemetry"], queryFn: api.telemetry });
+
+  const copy = async () => {
+    if (!t.data) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(t.data, null, 2));
+      toast("诊断信息已复制，可粘贴到内测反馈渠道");
+    } catch {
+      toastError("复制失败，请手动截图本卡片");
+    }
+  };
+
+  const cells: Array<{ label: string; value: string | number }> = t.data
+    ? [
+        { label: "激活（≥1 项目 +5 任务）", value: t.data.activated ? "✅" : "—" },
+        { label: "累计活跃天数", value: t.data.activeDays },
+        { label: "近 7 天活跃", value: t.data.activeDaysLast7 },
+        { label: "创建项目", value: t.data.projectsCreated },
+        { label: "创建任务", value: t.data.tasksCreated },
+        { label: "登记风险", value: t.data.risksCreated },
+        { label: "保存基线", value: t.data.baselinesCreated },
+        { label: "登记工时", value: t.data.timeLogsCreated },
+        { label: "AI 生成 / 采纳", value: `${t.data.aiGenerations} / ${t.data.aiAdopted}` },
+      ]
+    : [];
+
+  return (
+    <Card
+      title="使用统计（内测诊断）"
+      subtitle="仅统计操作次数与活跃天数，不含任何内容文本；数据留在本机，由你决定是否反馈"
+    >
+      {t.isLoading ? (
+        <div className="py-2 text-center text-xs text-slate-400">加载中…</div>
+      ) : t.isError ? (
+        <div className="py-2 text-center text-xs text-red-600">统计加载失败：{t.error.message}</div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {cells.map((c) => (
+              <div key={c.label} className="rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-2">
+                <div className="text-[10px] text-slate-500">{c.label}</div>
+                <div className="mt-0.5 text-sm font-semibold text-slate-700">{c.value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-slate-400">
+              首次使用：{t.data?.firstSeenAt?.slice(0, 10) ?? "—"} · 最近写入：
+              {t.data?.lastActiveAt?.slice(0, 16).replace("T", " ") ?? "—"}
+            </span>
+            <Button size="sm" variant="secondary" onClick={() => void copy()}>
+              复制诊断信息
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

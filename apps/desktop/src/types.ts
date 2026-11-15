@@ -495,6 +495,23 @@ export interface EvmReport {
   unscheduledHours: number;
 }
 
+/** 内测诊断统计：全部由 OpLog 本地聚合，无内容文本、无网络上报。 */
+export interface TelemetrySummary {
+  firstSeenAt: string | null;
+  lastActiveAt: string | null;
+  activeDays: number;
+  activeDaysLast7: number;
+  projectsCreated: number;
+  tasksCreated: number;
+  risksCreated: number;
+  baselinesCreated: number;
+  timeLogsCreated: number;
+  aiGenerations: number;
+  aiAdopted: number;
+  /** 激活标准：≥1 项目且 ≥5 任务 */
+  activated: boolean;
+}
+
 export const PROJECT_METHOD_LABEL: Record<ProjectMethod, string> = {
   predictive: "预测型",
   agile: "敏捷",

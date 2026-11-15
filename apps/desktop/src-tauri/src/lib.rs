@@ -82,6 +82,7 @@ pub fn run() {
             data_commands::export_tasks_csv_to,
             commands::get_risk_radar,
             commands::get_workload,
+            commands::get_telemetry,
             commands::get_evm,
             commands::create_time_log,
             commands::list_time_logs,

@@ -116,6 +116,11 @@ pub fn get_workload(state: State<AppState>) -> CmdResult<Vec<repo::stats::Worklo
     with_db(&state, |db| repo::stats::workload(&db.conn, 8))
 }
 
+#[tauri::command]
+pub fn get_telemetry(state: State<AppState>) -> CmdResult<repo::stats::TelemetrySummary> {
+    with_db(&state, |db| repo::stats::telemetry(&db.conn))
+}
+
 // ---------- 进度：排程 / 依赖（S2） ----------
 
 #[tauri::command]

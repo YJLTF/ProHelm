@@ -33,6 +33,7 @@ import type {
   UpdateRiskInput,
   UpdateStakeholderInput,
   UpdateTaskInput,
+  TelemetrySummary,
   WorkloadItem,
   WbsDraftOut,
 } from "../types";
@@ -151,4 +152,7 @@ export const api = {
   getAutoBackupEnabled: () => invoke<boolean>("get_auto_backup_enabled"),
   setAutoBackupEnabled: (enabled: boolean) =>
     invoke<void>("set_auto_backup_enabled", { enabled }),
+
+  // 内测诊断统计（S6，仅本地聚合）
+  telemetry: () => invoke<TelemetrySummary>("get_telemetry"),
 };
