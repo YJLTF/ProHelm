@@ -251,6 +251,10 @@ function DataSection() {
     queryKey: ["auto-backup-enabled"],
     queryFn: api.getAutoBackupEnabled,
   });
+  const closeToTray = useQuery({
+    queryKey: ["close-to-tray"],
+    queryFn: api.getCloseToTray,
+  });
   const [busy, setBusy] = useState(false);
 
   const toggleAuto = async (enabled: boolean) => {
@@ -258,6 +262,16 @@ function DataSection() {
       await api.setAutoBackupEnabled(enabled);
       void qc.invalidateQueries({ queryKey: ["auto-backup-enabled"] });
       toast(enabled ? "已开启每日自动快照" : "已关闭每日自动快照");
+    } catch (e) {
+      toastError((e as { message?: string }).message ?? "设置失败");
+    }
+  };
+
+  const toggleTray = async (enabled: boolean) => {
+    try {
+      await api.setCloseToTray(enabled);
+      void qc.invalidateQueries({ queryKey: ["close-to-tray"] });
+      toast(enabled ? "关闭窗口将驻留系统托盘" : "关闭窗口将直接退出");
     } catch (e) {
       toastError((e as { message?: string }).message ?? "设置失败");
     }
@@ -355,6 +369,22 @@ function DataSection() {
           <span className="block text-xs font-medium text-slate-700">每日自动快照</span>
           <span className="block text-[11px] text-slate-400">
             每天首次启动应用时自动备份整个数据库，保留最近 14 份（prohelm-auto-*）
+          </span>
+        </span>
+      </label>
+
+      <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-blue-600"
+          checked={closeToTray.data ?? true}
+          disabled={closeToTray.isLoading}
+          onChange={(e) => void toggleTray(e.target.checked)}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-medium text-slate-700">关闭窗口时驻留系统托盘</span>
+          <span className="block text-[11px] text-slate-400">
+            点 ✕ 隐藏到托盘继续运行（每日自动快照不停）；左键点托盘图标恢复窗口，菜单可立即备份或退出
           </span>
         </span>
       </label>

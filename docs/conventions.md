@@ -55,6 +55,8 @@
 - 工时台账 `time_log` 是 AC 的唯一事实来源；`tasks.actual_hours` 为派生缓存，写入/删除后由仓库层重算
 - 每日自动快照：数据目录 `backups/prohelm-auto-*.db`，当天首次启动落盘，保留 14 份；
   开关存 settings 表 `auto_backup_enabled`（默认开启），后台线程每小时检查一次
+- 托盘驻留：关闭按钮拦截读 settings 表 `close_to_tray`（默认开启，实时生效）；
+  托盘常驻（左键恢复窗口，菜单：显示/备份/退出），开关只影响 ✕ 的行为
 - 新建项目统一走 `lib/templateApply.ts`（空白/行业模板共用一条落库路径）
 - 诊断统计（`repo::stats::telemetry`）只允许从 OpLog/业务表聚合**次数与天数**，
   严禁写入任何内容文本；无网络上报，展示与导出均由用户主动触发

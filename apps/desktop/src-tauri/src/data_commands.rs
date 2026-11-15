@@ -173,6 +173,25 @@ pub fn set_auto_backup_enabled(state: State<AppState>, enabled: bool) -> CmdResu
     Ok(())
 }
 
+/// 关闭按钮驻留托盘开关（默认开启；关闭拦截实时读取此设置）。
+#[tauri::command]
+pub fn get_close_to_tray(state: State<AppState>) -> CmdResult<bool> {
+    let db = state.db.lock().map_err(|_| lock_error())?;
+    let v = helm_core::repo::settings::get(&db.conn, "close_to_tray")?;
+    Ok(v.map(|s| s != "false").unwrap_or(true))
+}
+
+#[tauri::command]
+pub fn set_close_to_tray(state: State<AppState>, enabled: bool) -> CmdResult<()> {
+    let db = state.db.lock().map_err(|_| lock_error())?;
+    helm_core::repo::settings::set(
+        &db.conn,
+        "close_to_tray",
+        if enabled { "true" } else { "false" },
+    )?;
+    Ok(())
+}
+
 // ---------- 备份与恢复 ----------
 
 #[tauri::command]

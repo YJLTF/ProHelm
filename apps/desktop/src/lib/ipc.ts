@@ -148,10 +148,12 @@ export const api = {
     invoke<TimeLog[]>("list_time_logs", { projectId }),
   deleteTimeLog: (id: string) => invoke<void>("delete_time_log", { id }),
 
-  // 自动快照（S6）
+  // 自动快照 / 托盘驻留（S6）
   getAutoBackupEnabled: () => invoke<boolean>("get_auto_backup_enabled"),
   setAutoBackupEnabled: (enabled: boolean) =>
     invoke<void>("set_auto_backup_enabled", { enabled }),
+  getCloseToTray: () => invoke<boolean>("get_close_to_tray"),
+  setCloseToTray: (enabled: boolean) => invoke<void>("set_close_to_tray", { enabled }),
 
   // 内测诊断统计（S6，仅本地聚合）
   telemetry: () => invoke<TelemetrySummary>("get_telemetry"),
