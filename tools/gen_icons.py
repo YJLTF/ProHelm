@@ -11,6 +11,7 @@ S3 视觉外包落地后替换为正式 Logo。
 
 from __future__ import annotations
 
+import io
 import math
 import os
 import struct
@@ -106,40 +107,71 @@ def png_chunk(tag: bytes, data: bytes) -> bytes:
     )
 
 
-def write_png(path: str, px: list[list[tuple[int, int, int, int]]]) -> None:
+def write_png_stream(out: io.BytesIO, px: list[list[tuple[int, int, int, int]]]) -> None:
     h, w = len(px), len(px[0])
     raw = b""
     for row in px:
         raw += b"\x00" + b"".join(bytes(c) for c in row)
     ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
-    blob = (
+    out.write(
         b"\x89PNG\r\n\x1a\n"
         + png_chunk(b"IHDR", ihdr)
         + png_chunk(b"IDAT", zlib.compress(raw, 9))
         + png_chunk(b"IEND", b"")
     )
+
+
+def write_png(path: str, px: list[list[tuple[int, int, int, int]]]) -> None:
     with open(path, "wb") as f:
-        f.write(blob)
+        write_png_stream(f, px)
 
 
-def write_ico(path: str, px: list[list[tuple[int, int, int, int]]]) -> None:
+# ICO 内嵌尺寸：覆盖桌面 48、任务栏 24/32、高 DPI（72/96）与资源管理器大图标
+ICO_SIZES = [16, 20, 24, 30, 32, 48, 64, 72, 96, 128, 256]
+
+
+def ico_frame_bmp(px: list[list[tuple[int, int, int, int]]]) -> bytes:
+    """单帧 32bpp BMP（BITMAPINFOHEADER + 自底向上 XOR + AND 掩码）。"""
     w = len(px[0])
     h = len(px)
     and_stride = ((w + 31) // 32) * 4
     xor_size = w * h * 4
     and_size = and_stride * h
-    img_size = 40 + xor_size + and_size
-    header = struct.pack("<HHH", 0, 1, 1)
-    entry = struct.pack("<BBBBHHII", w % 256, h % 256, 0, 0, 1, 32, img_size, 6 + 16)
-    bmp = struct.pack("<IiiHHIIiiII", 40, w, h * 2, 1, 32, 0, xor_size + and_size, 0, 0, 0, 0)
+    bmp = struct.pack(
+        "<IiiHHIIiiII", 40, w, h * 2, 1, 32, 0, xor_size + and_size, 0, 0, 0, 0
+    )
     xor = b""
     for row in reversed(px):  # BMP 自底向上
         for (r, g, b, a) in row:
             xor += bytes((b, g, r, a))
-    xor += b"\x00" * and_size
-    blob = header + entry + bmp + xor
+    return bmp + xor + b"\x00" * and_size
+
+
+def write_ico(path: str) -> None:
+    """多尺寸 **BMP 帧** ICO：每个尺寸从矢量独立渲染（质量优于缩放）。
+
+    - 旧版只嵌 1 张 32x32 BMP，桌面（48px/72px）拉伸显示导致快捷方式图标发糊；
+    - 曾改用 PNG 帧（体积小），但 Windows SDK rc.exe 不支持 PNG-in-ICO，
+      多帧被"吞"成单帧——故保持全 BMP 帧，兼容 rc.exe / llvm-rc / windres。
+    """
+    entries: list[tuple[int, int, bytes]] = []
+    for size in ICO_SIZES:
+        ss = 8 if size <= 32 else (4 if size <= 64 else 2)
+        px = render(size, ss=ss)
+        entries.append((size, size, ico_frame_bmp(px)))
+
+    header = struct.pack("<HHH", 0, 1, len(entries))
+    directory = b""
+    offset = 6 + 16 * len(entries)
+    for w, h, data in entries:
+        directory += struct.pack(
+            "<BBBBHHII", w % 256, h % 256, 0, 0, 1, 32, len(data), offset
+        )
+        offset += len(data)
+    blob = header + directory + b"".join(d for _, _, d in entries)
     with open(path, "wb") as f:
         f.write(blob)
+    print(f"OK icon.ico ({len(entries)} 尺寸 BMP 帧: {', '.join(map(str, ICO_SIZES))})")
 
 
 def main() -> None:
@@ -148,8 +180,7 @@ def main() -> None:
         px = render(size)
         write_png(os.path.join(OUT_DIR, name), px)
         print(f"OK {name} ({size}x{size})")
-    write_ico(os.path.join(OUT_DIR, "icon.ico"), render(32))
-    print("OK icon.ico (32x32)")
+    write_ico(os.path.join(OUT_DIR, "icon.ico"))
     print(f"输出目录: {OUT_DIR}")
 
 

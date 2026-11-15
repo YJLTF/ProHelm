@@ -55,7 +55,8 @@ pub fn run() {
             let quit_item = MenuItem::with_id(app, "quit", "退出 ProHelm", true, None::<&str>)?;
             let tray_menu = Menu::with_items(app, &[&show_item, &backup_item, &quit_item])?;
             TrayIconBuilder::new()
-                .icon(tauri::include_image!("icons/128x128.png"))
+                // Windows 托盘显示 16~32px：用 32 源缩放比 128 源更清晰
+                .icon(tauri::include_image!("icons/32x32.png"))
                 .tooltip("ProHelm（项舵）")
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
