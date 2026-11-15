@@ -41,6 +41,11 @@ fn show_main_window(app: &tauri::AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
+        // 单实例：必须最先注册。二次启动立即退出并把已有窗口带到前台
+        // （窗口托盘驻留时同样能恢复，避免用户误以为"点不开"）。
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            show_main_window(app);
+        }))
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // 数据文件位置：%APPDATA%/com.prohelm.desktop/（Win）、~/Library/Application Support（mac）
