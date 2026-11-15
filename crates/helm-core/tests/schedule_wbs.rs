@@ -69,7 +69,7 @@ fn dependency_crud_and_validations() {
     let c = task(&db, &p.id, "任务C", 2.0);
 
     let d1 = dep(&db, &p.id, &a, &b);
-    assert_eq!(d1.is_empty(), false);
+    assert!(!d1.is_empty());
 
     // 重复依赖
     let dup = CreateDependencyInput {

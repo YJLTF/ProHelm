@@ -8,6 +8,7 @@
 pub mod cpm;
 pub mod db;
 pub mod error;
+pub mod evm;
 pub mod migrations;
 pub mod models;
 pub mod repo;
@@ -20,10 +21,11 @@ pub use error::{HelmError, Result};
 pub use models::{
     AiArtifact, AiArtifactKind, AiArtifactStatus, Baseline, CharterContent, CharterEnvelope,
     CreateDependencyInput, CreateProjectInput, CreateRiskInput, CreateStakeholderInput,
-    CreateTaskInput, Dependency, DependencyType, MoveTaskInput, Project, ProjectMethod,
-    ProjectStatus, ReorderTaskInput, ResponseStrategy, Risk, RiskCategory, RiskStatus, Stakeholder,
-    Task, TaskMoveDirection, TaskPriority, TaskStatus, UpdateDependencyInput, UpdateProjectInput,
-    UpdateRiskInput, UpdateStakeholderInput, UpdateTaskInput,
+    CreateTaskInput, CreateTimeLogInput, Dependency, DependencyType, MoveTaskInput, Project,
+    ProjectMethod, ProjectStatus, ReorderTaskInput, ResponseStrategy, Risk, RiskCategory,
+    RiskStatus, Stakeholder, Task, TaskMoveDirection, TaskPriority, TaskStatus, TimeLog,
+    UpdateDependencyInput, UpdateProjectInput, UpdateRiskInput, UpdateStakeholderInput,
+    UpdateTaskInput,
 };
 pub use repo::schedule::ProjectSchedule;
 pub use repo::stats::DashboardStats;

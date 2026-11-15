@@ -12,7 +12,7 @@ use crate::models::{
 use crate::repo::{oplog, projects};
 use crate::util;
 
-const COLS: &str = "id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, created_at, updated_at";
+const COLS: &str = "id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, completed_at, created_at, updated_at";
 
 fn map_row(row: &Row) -> rusqlite::Result<Task> {
     let status: String = row.get("status")?;
@@ -34,6 +34,7 @@ fn map_row(row: &Row) -> rusqlite::Result<Task> {
         assignee: row.get("assignee")?,
         sort_order: row.get("sort_order")?,
         is_milestone: row.get("is_milestone")?,
+        completed_at: row.get("completed_at")?,
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
     })
@@ -142,6 +143,7 @@ pub fn create(conn: &Connection, input: &CreateTaskInput) -> Result<Task> {
 
 pub fn update(conn: &Connection, input: &UpdateTaskInput) -> Result<Task> {
     input.validate()?;
+    let old = get(conn, &input.id)?;
     let now = util::now_iso();
     let affected = conn.execute(
         "UPDATE tasks SET
@@ -178,6 +180,20 @@ pub fn update(conn: &Connection, input: &UpdateTaskInput) -> Result<Task> {
     )?;
     if affected == 0 {
         return Err(not_found(&input.id));
+    }
+    // completed_at 由状态流转显式维护（COALESCE 语义无法置空）：
+    // 转入 done 记录时刻；离开 done 清空，保证 EV 曲线随状态回退正确撤销。
+    let new_status = input.status.unwrap_or(old.status);
+    if new_status == TaskStatus::Done && old.status != TaskStatus::Done {
+        conn.execute(
+            "UPDATE tasks SET completed_at = ?1 WHERE id = ?2",
+            params![now, input.id],
+        )?;
+    } else if new_status != TaskStatus::Done && old.status == TaskStatus::Done {
+        conn.execute(
+            "UPDATE tasks SET completed_at = NULL WHERE id = ?1",
+            params![input.id],
+        )?;
     }
     oplog::record(
         conn,
@@ -341,4 +357,173 @@ pub fn reorder_task(conn: &Connection, input: &ReorderTaskInput) -> Result<Task>
     )?;
     renumber_wbs(conn, &task.project_id)?;
     get(conn, &task.id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{CreateProjectInput, CreateTaskInput};
+    use crate::repo::projects;
+
+    fn setup() -> (Connection, String) {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::migrations::run(&conn).unwrap();
+        let project = projects::create(
+            &conn,
+            &CreateProjectInput {
+                name: "测试项目".into(),
+                code: None,
+                method: Default::default(),
+                description: None,
+                start_date: None,
+                target_end_date: None,
+                bac: 0.0,
+            },
+        )
+        .unwrap();
+        (conn, project.id)
+    }
+
+    fn mk_task(conn: &Connection, project_id: &str, title: &str) -> String {
+        create(
+            conn,
+            &CreateTaskInput {
+                project_id: project_id.into(),
+                parent_id: None,
+                title: title.into(),
+                notes: None,
+                priority: Default::default(),
+                estimate_hours: 8.0,
+                duration_days: 1.0,
+                start_date: None,
+                end_date: None,
+                assignee: None,
+                is_milestone: false,
+            },
+        )
+        .unwrap()
+        .id
+    }
+
+    #[test]
+    fn completing_task_records_completed_at() {
+        let (conn, pid) = setup();
+        let id = mk_task(&conn, &pid, "写代码");
+        let done = update(
+            &conn,
+            &UpdateTaskInput {
+                id: id.clone(),
+                title: None,
+                notes: None,
+                status: Some(TaskStatus::Done),
+                priority: None,
+                estimate_hours: None,
+                duration_days: None,
+                actual_hours: None,
+                start_date: None,
+                end_date: None,
+                assignee: None,
+                sort_order: None,
+                is_milestone: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(done.status, TaskStatus::Done);
+        assert!(done.completed_at.is_some(), "转入 done 应记录完成时刻");
+    }
+
+    #[test]
+    fn reopening_task_clears_completed_at() {
+        let (conn, pid) = setup();
+        let id = mk_task(&conn, &pid, "写代码");
+        update(
+            &conn,
+            &UpdateTaskInput {
+                id: id.clone(),
+                title: None,
+                notes: None,
+                status: Some(TaskStatus::Done),
+                priority: None,
+                estimate_hours: None,
+                duration_days: None,
+                actual_hours: None,
+                start_date: None,
+                end_date: None,
+                assignee: None,
+                sort_order: None,
+                is_milestone: None,
+            },
+        )
+        .unwrap();
+        let reopened = update(
+            &conn,
+            &UpdateTaskInput {
+                id: id.clone(),
+                title: None,
+                notes: None,
+                status: Some(TaskStatus::InProgress),
+                priority: None,
+                estimate_hours: None,
+                duration_days: None,
+                actual_hours: None,
+                start_date: None,
+                end_date: None,
+                assignee: None,
+                sort_order: None,
+                is_milestone: None,
+            },
+        )
+        .unwrap();
+        assert!(
+            reopened.completed_at.is_none(),
+            "离开 done 应清空完成时刻，保证 EV 曲线正确回退"
+        );
+    }
+
+    #[test]
+    fn unrelated_update_keeps_completed_at() {
+        let (conn, pid) = setup();
+        let id = mk_task(&conn, &pid, "写代码");
+        update(
+            &conn,
+            &UpdateTaskInput {
+                id: id.clone(),
+                title: None,
+                notes: None,
+                status: Some(TaskStatus::Done),
+                priority: None,
+                estimate_hours: None,
+                duration_days: None,
+                actual_hours: None,
+                start_date: None,
+                end_date: None,
+                assignee: None,
+                sort_order: None,
+                is_milestone: None,
+            },
+        )
+        .unwrap();
+        // 仅改标题：完成时刻不应被触碰
+        let t = update(
+            &conn,
+            &UpdateTaskInput {
+                id: id.clone(),
+                title: Some("改个名字".into()),
+                notes: None,
+                status: None,
+                priority: None,
+                estimate_hours: None,
+                duration_days: None,
+                actual_hours: None,
+                start_date: None,
+                end_date: None,
+                assignee: None,
+                sort_order: None,
+                is_milestone: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(t.title, "改个名字");
+        assert!(t.completed_at.is_some());
+    }
 }

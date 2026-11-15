@@ -118,6 +118,10 @@ pub struct Task {
     pub sort_order: i64,
     /// 里程碑标记：零工期的重要节点（甘特图深色呈现）
     pub is_milestone: bool,
+    /// 转入 done 的时刻（时间相位挣值 EV 的依据；旧数据/未完成为 None）。
+    /// 基线快照中不含该字段，`default` 保证旧快照 JSON 可反序列化。
+    #[serde(default)]
+    pub completed_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -595,4 +599,44 @@ pub struct AiArtifact {
     pub output: String,
     pub status: AiArtifactStatus,
     pub created_at: String,
+}
+
+// ---------- S6：挣值管理（工时台账与 EVM 报表） ----------
+
+/// 工时台账条目：AC（实际成本，以人时计）的唯一事实来源。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimeLog {
+    pub id: String,
+    pub project_id: String,
+    pub task_id: String,
+    pub log_date: String,
+    pub hours: f64,
+    pub note: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTimeLogInput {
+    pub project_id: String,
+    pub task_id: String,
+    /// 工时归属日（YYYY-MM-DD，可早于今天补录）。
+    pub log_date: String,
+    pub hours: f64,
+    pub note: Option<String>,
+}
+
+impl CreateTimeLogInput {
+    pub fn validate(&self) -> Result<()> {
+        if self.hours <= 0.0 || self.hours > 24.0 {
+            return Err(HelmError::Validation(
+                "工时须大于 0 且不超过 24 小时".into(),
+            ));
+        }
+        if chrono::NaiveDate::parse_from_str(&self.log_date, "%Y-%m-%d").is_err() {
+            return Err(HelmError::Validation("日期格式须为 YYYY-MM-DD".into()));
+        }
+        Ok(())
+    }
 }

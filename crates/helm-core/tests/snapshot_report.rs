@@ -125,7 +125,7 @@ fn snapshot_export_import_roundtrip() {
     // 原始 ID 保留，数据一致
     let restored = projects::get(&db2.conn, &p1).unwrap();
     assert_eq!(restored.name, "项目甲");
-    assert_eq!(restored.tailored.as_ref().unwrap().len() > 0, true);
+    assert!(!restored.tailored.as_ref().unwrap().is_empty());
     let restored_tasks = tasks::list_by_project(&db2.conn, &p1).unwrap();
     assert_eq!(restored_tasks.len(), 2);
     let restored_risks = risks::list_by_project(&db2.conn, &p1).unwrap();

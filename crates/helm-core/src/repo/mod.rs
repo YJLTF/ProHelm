@@ -4,6 +4,7 @@ pub mod ai_artifacts;
 pub mod baselines;
 pub mod charters;
 pub mod dependencies;
+pub mod evm;
 pub mod oplog;
 pub mod projects;
 pub mod risks;
@@ -12,6 +13,7 @@ pub mod settings;
 pub mod stakeholders;
 pub mod stats;
 pub mod tasks;
+pub mod time_log;
 
 use rusqlite::Error as SqlError;
 use rusqlite::types::Type;

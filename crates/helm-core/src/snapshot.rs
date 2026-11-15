@@ -1,6 +1,6 @@
 //! 全量数据快照：JSON 导出/导入（数据主权与迁移能力的基础）。
 //!
-//! 快照包含用户数据（项目/任务/依赖/风险/干系人/章程/基线），
+//! 快照包含用户数据（项目/任务/依赖/风险/干系人/章程/基线/工时台账），
 //! 不包含：oplog（本地审计）、ai_artifacts（本地溯源）、settings（本机配置）。
 //! 导入保留原始 ULID 主键；先清空 projects（FK 级联清空全部子表）再插入。
 
@@ -11,6 +11,7 @@ use crate::error::{HelmError, Result};
 use crate::models::{
     Baseline, CharterContent, Dependency, DependencyType, Project, ProjectMethod, ProjectStatus,
     ResponseStrategy, Risk, RiskCategory, RiskStatus, Stakeholder, Task, TaskPriority, TaskStatus,
+    TimeLog,
 };
 
 pub const SNAPSHOT_VERSION: i64 = 1;
@@ -27,6 +28,9 @@ pub struct Snapshot {
     pub stakeholders: Vec<Stakeholder>,
     pub charters: Vec<SnapshotCharter>,
     pub baselines: Vec<Baseline>,
+    /// S6 起随包携带工时台账；`default` 兼容旧版数据包。
+    #[serde(default)]
+    pub time_logs: Vec<TimeLog>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,6 +52,7 @@ pub struct ImportStats {
     pub stakeholders: usize,
     pub charters: usize,
     pub baselines: usize,
+    pub time_logs: usize,
 }
 
 fn enum_conversion_error(e: HelmError) -> rusqlite::Error {
@@ -98,7 +103,7 @@ pub fn export(conn: &Connection) -> Result<Snapshot> {
     let mut tasks = Vec::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, created_at, updated_at FROM tasks ORDER BY created_at",
+            "SELECT id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, completed_at, created_at, updated_at FROM tasks ORDER BY created_at",
         )?;
         let rows = stmt.query_map([], |row| {
             let status: String = row.get("status")?;
@@ -120,6 +125,7 @@ pub fn export(conn: &Connection) -> Result<Snapshot> {
                 assignee: row.get("assignee")?,
                 sort_order: row.get("sort_order")?,
                 is_milestone: row.get("is_milestone")?,
+                completed_at: row.get("completed_at")?,
                 created_at: row.get("created_at")?,
                 updated_at: row.get("updated_at")?,
             })
@@ -247,6 +253,27 @@ pub fn export(conn: &Connection) -> Result<Snapshot> {
         }
     }
 
+    let mut time_logs = Vec::new();
+    {
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, task_id, log_date, hours, note, created_at FROM time_log ORDER BY created_at",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(TimeLog {
+                id: row.get("id")?,
+                project_id: row.get("project_id")?,
+                task_id: row.get("task_id")?,
+                log_date: row.get("log_date")?,
+                hours: row.get("hours")?,
+                note: row.get("note")?,
+                created_at: row.get("created_at")?,
+            })
+        })?;
+        for r in rows {
+            time_logs.push(r?);
+        }
+    }
+
     Ok(Snapshot {
         app: "prohelm".into(),
         version: SNAPSHOT_VERSION,
@@ -258,6 +285,7 @@ pub fn export(conn: &Connection) -> Result<Snapshot> {
         stakeholders,
         charters,
         baselines,
+        time_logs,
     })
 }
 
@@ -307,6 +335,7 @@ fn insert_all(
 ) -> Result<ImportStats> {
     // 外键校验已临时关闭：显式按子表优先清空（旧数据 + 级联依赖）
     tx.execute("DELETE FROM ai_artifacts", [])?;
+    tx.execute("DELETE FROM time_log", [])?;
     tx.execute("DELETE FROM tasks", [])?;
     tx.execute("DELETE FROM dependencies", [])?;
     tx.execute("DELETE FROM risks", [])?;
@@ -328,13 +357,13 @@ fn insert_all(
     }
     for t in &snapshot.tasks {
         tx.execute(
-            "INSERT INTO tasks (id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+            "INSERT INTO tasks (id, project_id, parent_id, wbs_code, title, notes, status, priority, estimate_hours, duration_days, actual_hours, start_date, end_date, assignee, sort_order, is_milestone, completed_at, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
             params![
                 t.id, t.project_id, t.parent_id, t.wbs_code, t.title, t.notes,
                 t.status.as_str(), t.priority.as_str(), t.estimate_hours, t.duration_days,
                 t.actual_hours, t.start_date, t.end_date, t.assignee, t.sort_order,
-                t.is_milestone, t.created_at, t.updated_at
+                t.is_milestone, t.completed_at, t.created_at, t.updated_at
             ],
         )?;
     }
@@ -378,6 +407,12 @@ fn insert_all(
             params![b.id, b.project_id, b.name, b.snapshot, b.created_at],
         )?;
     }
+    for l in &snapshot.time_logs {
+        tx.execute(
+            "INSERT INTO time_log (id, project_id, task_id, log_date, hours, note, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![l.id, l.project_id, l.task_id, l.log_date, l.hours, l.note, l.created_at],
+        )?;
+    }
 
     Ok(ImportStats {
         projects: snapshot.projects.len(),
@@ -387,5 +422,6 @@ fn insert_all(
         stakeholders: snapshot.stakeholders.len(),
         charters: snapshot.charters.len(),
         baselines: snapshot.baselines.len(),
+        time_logs: snapshot.time_logs.len(),
     })
 }
