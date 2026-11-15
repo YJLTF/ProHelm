@@ -2,6 +2,8 @@
 
 > 基于 PMP 体系的 AI 原生、本地优先桌面项目管理工具 —— 帮中小团队"接得住项目、看得清风险、交得出结果"。
 
+**仓库**：https://github.com/YJLTF/ProHelm ｜ **下载**：[Releases](https://github.com/YJLTF/ProHelm/releases) ｜ 许可证：GPL-3.0
+
 ## 产品定位（一句话）
 
 把 **PMP 方法论** + **AI 舵手** + **数据不出本地的桌面应用** 组合到一起，服务 5~50 人团队的项目经理与核心成员。
