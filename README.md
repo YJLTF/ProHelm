@@ -17,17 +17,19 @@
 | [05-团队组建方案](docs/05-团队组建方案.md) | 角色矩阵、配置方案 A/B、AI 智能体工作流、招聘要点、决策机制 |
 | [conventions.md](docs/conventions.md) | 代码规范、测试要求、已知边界（AI 与人类共用基准） |
 
-## 当前状态：M1 · S1~S4 已完成，S5（发布基建）主体提前完成 ✅
+## 当前状态：M1 · S1~S5 已完成，S6（Alpha 发布）主体提前完成 ✅
 
 - Tauri 2 + React 19 + Rust 核心（`helm-core` 业务层 + `helm-ai` AI 引擎）三端可构建
-- SQLite 版本化迁移（0001~0005）+ 项目/任务/依赖/风险/干系人/章程/AI 溯源 全链路（OpLog 打底）
+- SQLite 版本化迁移（0001~0006）+ 项目/任务/依赖/风险/干系人/章程/AI 溯源/工时台账 全链路（OpLog 打底）
 - **S2**：CPM 关键路径算法、FS/SS/FF/SF 依赖（环检测）、甘特图、WBS 树编辑、计划基线
 - **S3**：风险登记册（概率×影响矩阵）、干系人方格、章程编辑器、方法论裁剪器、看板拖拽、行业模板
 - **S4**：AI 舵手——BYOK 网关（Key 存 OS 钥匙串）、PMP 教练问答（自研知识库 + 流式输出）、
   章程 AI 起草与 WBS 拆解（草稿→预览→采纳/弃用）、AiArtifact 溯源
 - **S5**：SQLite 单文件备份与一键恢复、全量 JSON 数据包导入导出、项目 Markdown 报告与任务 CSV、
   跨项目风险雷达与人员负荷、里程碑标记、tauri build 打包链路验证
-- CI：前端检查构建 + Rust fmt/clippy/test（GitHub Actions）；44 个 Rust 测试全绿
+- **S6**：挣值管理（EVM）——工时台账、PV/EV/AC、SPI/CPI/EAC、S 曲线与挣值完成率；
+  每日自动快照（保留 14 份 + 设置开关）；新建项目向导（空白/行业模板统一流程）
+- CI：前端检查构建 + Rust fmt/clippy/test（GitHub Actions）；68 个 Rust 测试全绿
 
 ## 开发指南
 

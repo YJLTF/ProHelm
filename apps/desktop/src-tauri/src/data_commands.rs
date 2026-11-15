@@ -87,6 +87,92 @@ fn validate_backup_file_name(file_name: &str) -> CmdResult<()> {
     Ok(())
 }
 
+// ---------- 每日自动快照（S6） ----------
+
+/// 自动快照的保留数量：超出后按文件名时间淘汰最旧的 auto 备份。
+const AUTO_BACKUP_KEEP: usize = 14;
+
+/// 执行一轮自动快照检查：当天未备份过（且开关开启）则落一个 auto 备份并修剪历史。
+/// 启动时与每小时由后台线程调用；任何失败静默记录，不干扰正常使用。
+pub fn run_auto_backup_cycle(app: &AppHandle) {
+    let result = try_auto_backup(app, &app.state::<AppState>());
+    if let Err(e) = result {
+        eprintln!("[prohelm] 自动快照失败: {}", e.message);
+    }
+}
+
+fn try_auto_backup(app: &AppHandle, state: &State<AppState>) -> CmdResult<()> {
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let (enabled, last_date) = {
+        let db = state.db.lock().map_err(|_| lock_error())?;
+        let enabled = helm_core::repo::settings::get(&db.conn, "auto_backup_enabled")?
+            .map(|v| v != "false")
+            .unwrap_or(true); // 默认开启：数据安全优先
+        let last = helm_core::repo::settings::get(&db.conn, "last_auto_backup_date")?;
+        (enabled, last)
+    };
+    if !enabled || last_date.as_deref() == Some(today.as_str()) {
+        return Ok(());
+    }
+
+    let dir = backups_dir(app)?;
+    let ts = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+    let target = dir.join(format!("prohelm-auto-{ts}.db"));
+    {
+        let db = state.db.lock().map_err(|_| lock_error())?;
+        db.conn
+            .execute("VACUUM INTO ?1", params![target.to_string_lossy().as_ref()])
+            .map_err(|e| CommandError {
+                message: format!("自动备份失败: {e}"),
+            })?;
+        helm_core::repo::settings::set(&db.conn, "last_auto_backup_date", &today)?;
+    }
+    prune_auto_backups(&dir)?;
+    Ok(())
+}
+
+/// 保留最近 `AUTO_BACKUP_KEEP` 个 auto 备份，删除更旧的。
+fn prune_auto_backups(dir: &PathBuf) -> CmdResult<()> {
+    let mut autos: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map_err(io_error)?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("prohelm-auto-") && n.ends_with(".db"))
+        })
+        .collect();
+    if autos.len() <= AUTO_BACKUP_KEEP {
+        return Ok(());
+    }
+    autos.sort(); // 文件名含时间戳，字典序即时间序
+    let excess = autos.len() - AUTO_BACKUP_KEEP;
+    for path in autos.into_iter().take(excess) {
+        let _ = std::fs::remove_file(path);
+    }
+    Ok(())
+}
+
+/// 自动快照开关（默认开启）。
+#[tauri::command]
+pub fn get_auto_backup_enabled(state: State<AppState>) -> CmdResult<bool> {
+    let db = state.db.lock().map_err(|_| lock_error())?;
+    let v = helm_core::repo::settings::get(&db.conn, "auto_backup_enabled")?;
+    Ok(v.map(|s| s != "false").unwrap_or(true))
+}
+
+#[tauri::command]
+pub fn set_auto_backup_enabled(state: State<AppState>, enabled: bool) -> CmdResult<()> {
+    let db = state.db.lock().map_err(|_| lock_error())?;
+    helm_core::repo::settings::set(
+        &db.conn,
+        "auto_backup_enabled",
+        if enabled { "true" } else { "false" },
+    )?;
+    Ok(())
+}
+
 // ---------- 备份与恢复 ----------
 
 #[tauri::command]

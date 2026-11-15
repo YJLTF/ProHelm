@@ -245,7 +245,21 @@ export function SettingsPage() {
 function DataSection() {
   const qc = useQueryClient();
   const backups = useQuery({ queryKey: ["backups"], queryFn: api.listBackups });
+  const autoEnabled = useQuery({
+    queryKey: ["auto-backup-enabled"],
+    queryFn: api.getAutoBackupEnabled,
+  });
   const [busy, setBusy] = useState(false);
+
+  const toggleAuto = async (enabled: boolean) => {
+    try {
+      await api.setAutoBackupEnabled(enabled);
+      void qc.invalidateQueries({ queryKey: ["auto-backup-enabled"] });
+      toast(enabled ? "已开启每日自动快照" : "已关闭每日自动快照");
+    } catch (e) {
+      toastError((e as { message?: string }).message ?? "设置失败");
+    }
+  };
 
   const create = async () => {
     setBusy(true);
@@ -327,6 +341,22 @@ function DataSection() {
 
   return (
     <div className="space-y-3 text-sm text-slate-600">
+      <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2.5">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-blue-600"
+          checked={autoEnabled.data ?? true}
+          disabled={autoEnabled.isLoading}
+          onChange={(e) => void toggleAuto(e.target.checked)}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-medium text-slate-700">每日自动快照</span>
+          <span className="block text-[11px] text-slate-400">
+            每天首次启动应用时自动备份整个数据库，保留最近 14 份（prohelm-auto-*）
+          </span>
+        </span>
+      </label>
+
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => void create()} disabled={busy}>
           立即备份
@@ -349,6 +379,11 @@ function DataSection() {
           <div className="max-h-56 divide-y divide-slate-50 overflow-y-auto rounded-lg border border-slate-100">
             {backups.data!.map((b) => (
               <div key={b.fileName} className="flex items-center gap-2 px-3 py-2 text-xs">
+                {b.fileName.startsWith("prohelm-auto-") && (
+                  <span className="shrink-0 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-600">
+                    自动
+                  </span>
+                )}
                 <span className="min-w-0 flex-1 truncate font-mono text-slate-700">
                   {b.fileName}
                 </span>

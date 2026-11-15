@@ -22,6 +22,16 @@ pub fn run() {
             std::fs::create_dir_all(&dir)?;
             let db = Db::open(&dir.join("prohelm.db"))?;
             app.manage(AppState { db: Mutex::new(db) });
+
+            // 每日自动快照：启动后稍候执行首轮，其后每小时检查一次（当天已备份则跳过）
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                loop {
+                    data_commands::run_auto_backup_cycle(&handle);
+                    std::thread::sleep(std::time::Duration::from_secs(3600));
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -72,6 +82,12 @@ pub fn run() {
             data_commands::export_tasks_csv_to,
             commands::get_risk_radar,
             commands::get_workload,
+            commands::get_evm,
+            commands::create_time_log,
+            commands::list_time_logs,
+            commands::delete_time_log,
+            data_commands::get_auto_backup_enabled,
+            data_commands::set_auto_backup_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("ProHelm 启动失败");

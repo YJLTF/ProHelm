@@ -8,12 +8,11 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { Dialog } from "../components/ui/Dialog";
 import { Input, Label } from "../components/ui/Input";
-import { api } from "../lib/ipc";
 import { toast, toastError } from "../store/toast";
+import { createProjectWithTemplate } from "../lib/templateApply";
 import { ARTIFACT_CARDS, PROJECT_TEMPLATES } from "../data/templates";
 import type { ProjectTemplate } from "../data/templates";
 import { PROJECT_METHOD_LABEL } from "../types";
-import type { CharterContent } from "../types";
 
 interface TemplateCardProps {
   template: ProjectTemplate;
@@ -71,57 +70,16 @@ function ApplyTemplateDialog({
     }
     setBusy(true);
     try {
-      const project = await api.createProject({
-        name,
-        code: code || null,
-        method: template.method,
-        description: template.charter?.objective
-          ? `【${template.name}】${template.charter.objective}`
-          : null,
-        startDate: startDate || null,
-        targetEndDate: targetEndDate || null,
-      });
-      // 任务两遍创建：先父后子；同时按 predecessorTitle 建立 FS 依赖
-      const idByTitle = new Map<string, string>();
-      for (const t of template.tasks) {
-        const created = await api.createTask({
-          projectId: project.id,
-          title: t.title,
-          parentId: t.parentTitle ? (idByTitle.get(t.parentTitle) ?? null) : null,
-          durationDays: t.durationDays,
-          notes: t.notes ?? null,
-        });
-        idByTitle.set(t.title, created.id);
-        if (t.predecessorTitle) {
-          const pred = idByTitle.get(t.predecessorTitle);
-          if (pred) {
-            await api.createDependency({
-              projectId: project.id,
-              predecessorId: pred,
-              successorId: created.id,
-              depType: "fs",
-              lagDays: 0,
-            });
-          }
-        }
-      }
-      for (const r of template.risks) {
-        await api.createRisk({ projectId: project.id, ...r });
-      }
-      if (template.charter) {
-        const charter: CharterContent = {
-          objective: "",
-          successCriteria: "",
-          keyDeliverables: "",
-          milestones: "",
-          constraints: "",
-          assumptions: "",
-          highLevelRisks: "",
-          pmAuthority: "",
-          ...template.charter,
-        };
-        await api.saveCharter(project.id, charter);
-      }
+      const project = await createProjectWithTemplate(
+        {
+          name,
+          code: code || null,
+          method: template.method,
+          startDate: startDate || null,
+          targetEndDate: targetEndDate || null,
+        },
+        template,
+      );
       void qc.invalidateQueries();
       toast(`已从「${template.name}」创建项目`);
       onClose();

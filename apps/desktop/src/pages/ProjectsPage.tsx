@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { FolderKanban, Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { FolderKanban, LayoutTemplate, Plus, Sparkles } from "lucide-react";
 
 import { ProjectCard } from "../components/projects/ProjectCard";
 import { Button } from "../components/ui/Button";
 import { Dialog } from "../components/ui/Dialog";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Input, Label, Select, Textarea } from "../components/ui/Input";
-import { useCreateProject, useProjects } from "../hooks/useProjects";
+import { useProjects } from "../hooks/useProjects";
 import { toast, toastError } from "../store/toast";
+import { createProjectWithTemplate } from "../lib/templateApply";
 import { PROJECT_METHOD_LABEL } from "../types";
 import type { ProjectMethod } from "../types";
+import { PROJECT_TEMPLATES } from "../data/templates";
+import type { ProjectTemplate } from "../data/templates";
 
 export function ProjectsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -47,7 +51,7 @@ function ProjectGrid() {
       <EmptyState
         icon={<FolderKanban size={32} />}
         title="还没有项目"
-        description="点击右上角「新建项目」开始；也可以在模板库中从行业模板快速起步（S3 上线）。"
+        description="点击右上角「新建项目」：从空白开始，或选择行业模板一键生成 WBS、依赖、风险与章程脚手架。"
       />
     );
   }
@@ -60,9 +64,23 @@ function ProjectGrid() {
   );
 }
 
+// ---------- 新建项目向导（S6） ----------
+
+/** 起步方式：空白 + 行业模板（模板会带出任务树 / 风险 / 章程脚手架与方法预置）。 */
+const BLANK_TEMPLATE: ProjectTemplate = {
+  key: "blank",
+  name: "空白项目",
+  desc: "从零开始，按 PMBOK 焦点领域逐步完善",
+  method: "hybrid",
+  tag: "混合",
+  tasks: [],
+  risks: [],
+};
+
 function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
-  const create = useCreateProject();
+  const qc = useQueryClient();
+  const [templateKey, setTemplateKey] = useState("blank");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [method, setMethod] = useState<ProjectMethod>("hybrid");
@@ -70,8 +88,19 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [targetEndDate, setTargetEndDate] = useState("");
   const [bac, setBac] = useState("");
   const [description, setDescription] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const template = [BLANK_TEMPLATE, ...PROJECT_TEMPLATES].find((t) => t.key === templateKey) ?? BLANK_TEMPLATE;
+  const hasContent = template.tasks.length > 0;
+
+  const pickTemplate = (key: string) => {
+    setTemplateKey(key);
+    const t = [BLANK_TEMPLATE, ...PROJECT_TEMPLATES].find((x) => x.key === key);
+    if (t) setMethod(t.method); // 跟随模板预置开发方法（可改）
+  };
 
   const reset = () => {
+    setTemplateKey("blank");
     setName("");
     setCode("");
     setMethod("hybrid");
@@ -86,40 +115,86 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
       toastError("请填写项目名称");
       return;
     }
-    create.mutate(
-      {
-        name,
-        code: code || null,
-        method,
-        description: description || null,
-        startDate: startDate || null,
-        targetEndDate: targetEndDate || null,
-        bac: bac ? Number(bac) : 0,
-      },
-      {
-        onSuccess: (project) => {
-          toast("项目创建成功");
-          reset();
-          onClose();
-          navigate(`/projects/${project.id}`);
-        },
-      },
-    );
+    setBusy(true);
+    const input = {
+      name,
+      code: code || null,
+      method,
+      description: description || null,
+      startDate: startDate || null,
+      targetEndDate: targetEndDate || null,
+      bac: bac ? Number(bac) : 0,
+    };
+    void (async () => {
+      try {
+        const project = await createProjectWithTemplate(input, hasContent ? template : null);
+        void qc.invalidateQueries();
+        toast(hasContent ? `已从「${template.name}」创建项目` : "项目创建成功");
+        reset();
+        onClose();
+        navigate(`/projects/${project.id}`);
+      } catch (e) {
+        toastError((e as { message?: string }).message ?? "创建失败，请重试");
+      } finally {
+        setBusy(false);
+      }
+    })();
   };
 
   return (
-    <Dialog open={open} title="新建项目" onClose={onClose} className="max-w-xl">
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-      >
+    <Dialog open={open} title="新建项目" onClose={onClose} className="max-w-2xl">
+      <div className="space-y-3">
+        {/* 第 1 步：起步方式 */}
+        <div>
+          <Label>起步方式</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {[BLANK_TEMPLATE, ...PROJECT_TEMPLATES].map((t) => {
+              const active = t.key === templateKey;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => pickTemplate(t.key)}
+                  className={`rounded-lg border p-2.5 text-left transition ${
+                    active
+                      ? "border-blue-500 bg-blue-50/60 ring-2 ring-blue-100"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {t.key === "blank" ? (
+                      <Sparkles size={13} className="shrink-0 text-blue-500" />
+                    ) : (
+                      <LayoutTemplate size={13} className="shrink-0 text-slate-400" />
+                    )}
+                    <span className="truncate text-xs font-semibold text-slate-800">{t.name}</span>
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-400">
+                    {t.desc}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          {hasContent && (
+            <p className="mt-2 text-[11px] text-blue-600">
+              将自动创建：{template.tasks.length} 个任务（含{" "}
+              {template.tasks.filter((x) => x.predecessorTitle).length} 条依赖）、
+              {template.risks.length} 条风险与章程脚手架
+            </p>
+          )}
+        </div>
+
+        {/* 第 2 步：基本信息 */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label required>项目名称</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：某商城 App 二期" autoFocus />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="例如：某商城 App 二期"
+              autoFocus
+            />
           </div>
           <div>
             <Label>项目编号</Label>
@@ -151,7 +226,11 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
           </div>
           <div>
             <Label>目标完成日期</Label>
-            <Input type="date" value={targetEndDate} onChange={(e) => setTargetEndDate(e.target.value)} />
+            <Input
+              type="date"
+              value={targetEndDate}
+              onChange={(e) => setTargetEndDate(e.target.value)}
+            />
           </div>
         </div>
         <div>
@@ -159,18 +238,18 @@ function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => voi
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="一句话说明项目目标与成功标准——这也是后续 AI 起草章程的输入（S4 上线）"
+            placeholder="一句话说明项目目标与成功标准——这也是后续 AI 起草章程的输入"
           />
         </div>
         <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
             取消
           </Button>
-          <Button type="submit" disabled={create.isPending}>
-            创建项目
+          <Button onClick={submit} disabled={busy}>
+            {busy ? "创建中…" : "创建项目"}
           </Button>
         </div>
-      </form>
+      </div>
     </Dialog>
   );
 }

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import {
   AlertTriangle,
-  BarChart3,
   CalendarClock,
   CheckCircle2,
   FileDown,
@@ -10,6 +9,7 @@ import {
   Table2,
 } from "lucide-react";
 
+import { EvmSection } from "../../components/evm/EvmSection";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { api } from "../../lib/ipc";
@@ -73,7 +73,7 @@ export function MonitoringTab({ project, tasks }: Props) {
 
       <Card
         title="计划基线"
-        subtitle="保存当前 WBS / 依赖结构快照；M2 挣值管理（SPI/CPI）将以基线为对比基准"
+        subtitle="保存当前 WBS / 依赖结构快照，作为挣值管理（EVM）与进度对比的计划基准"
       >
         <div className="mb-3">
           <Button
@@ -157,19 +157,7 @@ export function MonitoringTab({ project, tasks }: Props) {
         </div>
       </Card>
 
-      <Card
-        title="挣值管理（EVM）仪表盘"
-        subtitle="M2 上线：基于基线快照 + 工时记录计算 PV/EV/AC、SPI/CPI、EAC 预测与 S 曲线"
-      >
-        <div className="flex items-center gap-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 p-4">
-          <BarChart3 size={22} className="text-slate-300" />
-          <p className="text-xs leading-relaxed text-slate-500">
-            EVM 是 PMBOK 成本/进度绩效的标准度量：设置基线并记录工时后，这里将呈现
-            <span className="mx-1 font-mono text-slate-600">SPI / CPI / EAC</span>
-            曲线，并由 AI 舵手给出偏差归因（S4）。当前页面先提供任务级健康信号与基线快照。
-          </p>
-        </div>
-      </Card>
+      <EvmSection project={project} tasks={tasks} />
     </div>
   );
 }

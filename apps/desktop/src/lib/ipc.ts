@@ -14,8 +14,10 @@ import type {
   CreateRiskInput,
   CreateStakeholderInput,
   CreateTaskInput,
+  CreateTimeLogInput,
   DashboardStats,
   Dependency,
+  EvmReport,
   ImportStats,
   MoveTaskInput,
   Project,
@@ -25,6 +27,7 @@ import type {
   RiskRadarItem,
   Stakeholder,
   Task,
+  TimeLog,
   UpdateDependencyInput,
   UpdateProjectInput,
   UpdateRiskInput,
@@ -134,4 +137,18 @@ export const api = {
   // 驾驶舱扩展（S5）
   riskRadar: () => invoke<RiskRadarItem[]>("get_risk_radar"),
   workload: () => invoke<WorkloadItem[]>("get_workload"),
+
+  // 挣值管理（S6）
+  getEvm: (projectId: string, baselineId?: string | null) =>
+    invoke<EvmReport>("get_evm", { projectId, baselineId: baselineId ?? null }),
+  createTimeLog: (input: CreateTimeLogInput) =>
+    invoke<TimeLog>("create_time_log", { input }),
+  listTimeLogs: (projectId: string) =>
+    invoke<TimeLog[]>("list_time_logs", { projectId }),
+  deleteTimeLog: (id: string) => invoke<void>("delete_time_log", { id }),
+
+  // 自动快照（S6）
+  getAutoBackupEnabled: () => invoke<boolean>("get_auto_backup_enabled"),
+  setAutoBackupEnabled: (enabled: boolean) =>
+    invoke<void>("set_auto_backup_enabled", { enabled }),
 };

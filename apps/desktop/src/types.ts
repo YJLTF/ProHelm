@@ -62,6 +62,8 @@ export interface Task {
   sortOrder: number;
   /** 里程碑标记：零工期的重要节点 */
   isMilestone: boolean;
+  /** 转入完成的时刻（EVM 时间相位 EV 的依据；未完成为 null） */
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -442,6 +444,55 @@ export interface WorkloadItem {
   taskCount: number;
   estimateHours: number;
   overdue: number;
+}
+
+// ---------- S6：挣值管理（工时台账 + EVM 报表） ----------
+
+export interface TimeLog {
+  id: string;
+  projectId: string;
+  taskId: string;
+  /** YYYY-MM-DD */
+  logDate: string;
+  hours: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface CreateTimeLogInput {
+  projectId: string;
+  taskId: string;
+  logDate: string;
+  hours: number;
+  note?: string | null;
+}
+
+export interface EvmPoint {
+  date: string;
+  pv: number;
+  ev: number;
+  ac: number;
+}
+
+export interface EvmSummary {
+  bac: number;
+  pv: number;
+  ev: number;
+  ac: number;
+  sv: number;
+  cv: number;
+  spi: number;
+  cpi: number;
+  eac: number;
+  vac: number;
+  percentComplete: number;
+}
+
+export interface EvmReport {
+  hasBaseline: boolean;
+  summary: EvmSummary;
+  series: EvmPoint[];
+  unscheduledHours: number;
 }
 
 export const PROJECT_METHOD_LABEL: Record<ProjectMethod, string> = {

@@ -2,12 +2,14 @@
 
 use helm_core::repo::{
     self, baselines, charters, dependencies, risks, schedule, stakeholders, stats::DashboardStats,
+    time_log,
 };
 use helm_core::{
     Baseline, CharterContent, CharterEnvelope, CreateDependencyInput, CreateProjectInput,
-    CreateRiskInput, CreateStakeholderInput, CreateTaskInput, Dependency, MoveTaskInput, Project,
-    ProjectSchedule, ReorderTaskInput, Risk, Stakeholder, Task, UpdateDependencyInput,
-    UpdateProjectInput, UpdateRiskInput, UpdateStakeholderInput, UpdateTaskInput,
+    CreateRiskInput, CreateStakeholderInput, CreateTaskInput, CreateTimeLogInput, Dependency,
+    MoveTaskInput, Project, ProjectSchedule, ReorderTaskInput, Risk, Stakeholder, Task, TimeLog,
+    UpdateDependencyInput, UpdateProjectInput, UpdateRiskInput, UpdateStakeholderInput,
+    UpdateTaskInput, evm::EvmReport,
 };
 use serde::Serialize;
 use tauri::State;
@@ -258,4 +260,34 @@ pub fn apply_recommended_tailoring(
     with_db(&state, |db| {
         repo::projects::apply_recommended_tailoring(&db.conn, &project_id)
     })
+}
+
+// ---------- 挣值管理：工时台账 + EVM 报表（S6） ----------
+
+#[tauri::command]
+pub fn get_evm(
+    state: State<AppState>,
+    project_id: String,
+    baseline_id: Option<String>,
+) -> CmdResult<EvmReport> {
+    with_db(&state, |db| {
+        repo::evm::report(&db.conn, &project_id, baseline_id.as_deref())
+    })
+}
+
+#[tauri::command]
+pub fn create_time_log(state: State<AppState>, input: CreateTimeLogInput) -> CmdResult<TimeLog> {
+    with_db(&state, |db| time_log::create(&db.conn, &input))
+}
+
+#[tauri::command]
+pub fn list_time_logs(state: State<AppState>, project_id: String) -> CmdResult<Vec<TimeLog>> {
+    with_db(&state, |db| {
+        time_log::list_by_project(&db.conn, &project_id, 30)
+    })
+}
+
+#[tauri::command]
+pub fn delete_time_log(state: State<AppState>, id: String) -> CmdResult<()> {
+    with_db(&state, |db| time_log::delete(&db.conn, &id))
 }

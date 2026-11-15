@@ -9,6 +9,7 @@ import type {
   CreateRiskInput,
   CreateStakeholderInput,
   CreateTaskInput,
+  CreateTimeLogInput,
   MoveTaskInput,
   ReorderTaskInput,
   UpdateProjectInput,
@@ -304,6 +305,50 @@ export function useApplyRecommendedTailoring(projectId: string) {
   return useMutation({
     mutationFn: () => api.applyRecommendedTailoring(projectId),
     onSuccess: () => invalidateProject(qc, projectId),
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+// ---------- S6：挣值管理（工时台账 + EVM） ----------
+
+export function useEvm(projectId: string, baselineId?: string | null) {
+  return useQuery({
+    queryKey: ["evm", projectId, baselineId ?? "latest"],
+    queryFn: () => api.getEvm(projectId, baselineId),
+    enabled: projectId.length > 0,
+  });
+}
+
+export function useTimeLogs(projectId: string) {
+  return useQuery({
+    queryKey: ["time-logs", projectId],
+    queryFn: () => api.listTimeLogs(projectId),
+    enabled: projectId.length > 0,
+  });
+}
+
+function invalidateEvm(qc: ReturnType<typeof useQueryClient>, projectId: string) {
+  // 台账变化影响 EVM 报表（全部基线版本）与任务缓存（actual_hours）
+  void qc.invalidateQueries({ queryKey: ["evm", projectId] });
+  void qc.invalidateQueries({ queryKey: ["time-logs", projectId] });
+  void qc.invalidateQueries({ queryKey: ["tasks", projectId] });
+  void qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+}
+
+export function useCreateTimeLog(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateTimeLogInput) => api.createTimeLog(input),
+    onSuccess: () => invalidateEvm(qc, projectId),
+    onError: (e: Error) => toastError(e.message),
+  });
+}
+
+export function useDeleteTimeLog(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteTimeLog(id),
+    onSuccess: () => invalidateEvm(qc, projectId),
     onError: (e: Error) => toastError(e.message),
   });
 }
