@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Pencil } from "lucide-react";
 
+import { ProjectEditDialog } from "../components/projects/ProjectEditDialog";
 import { Badge } from "../components/ui/Badge";
 import { cn, formatBudget, formatDate, statusTone } from "../lib/format";
 import { useProject, useTasks } from "../hooks/useProjects";
@@ -30,6 +31,7 @@ export function ProjectDetailPage() {
   const project = useProject(id);
   const tasks = useTasks(id);
   const [tab, setTab] = useState<TabKey>("overview");
+  const [editOpen, setEditOpen] = useState(false);
 
   if (project.isLoading) {
     return <div className="p-8 text-sm text-slate-500">加载中…</div>;
@@ -56,7 +58,16 @@ export function ProjectDetailPage() {
       </Link>
 
       <header className="mt-3">
-        <h1 className="text-xl font-bold text-slate-900">{p.name}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-xl font-bold text-slate-900">{p.name}</h1>
+          <button
+            onClick={() => setEditOpen(true)}
+            title="编辑项目信息与状态"
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-600 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
+          >
+            <Pencil size={12} /> 编辑
+          </button>
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
           <Badge tone="blue">{PROJECT_METHOD_LABEL[p.method]}</Badge>
           <Badge tone={statusTone(p.status)}>{PROJECT_STATUS_LABEL[p.status]}</Badge>
@@ -68,6 +79,8 @@ export function ProjectDetailPage() {
         </div>
         {p.description && <p className="mt-2 max-w-3xl text-sm text-slate-600">{p.description}</p>}
       </header>
+
+      <ProjectEditDialog project={p} open={editOpen} onClose={() => setEditOpen(false)} />
 
       <div className="mt-5 flex gap-1 border-b border-slate-200">
         {TABS.map((t) => (
