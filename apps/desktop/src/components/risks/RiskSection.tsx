@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Dialog } from "../ui/Dialog";
 import { EmptyState } from "../ui/EmptyState";
+import { Term } from "../ui/Term";
 import { Input, Label, Select, Textarea } from "../ui/Input";
 import {
   useCreateRisk,
@@ -134,7 +135,7 @@ export function RiskSection({ projectId }: Props) {
 
   return (
     <Card
-      title="风险登记册"
+      title={<Term id="risk-register">风险登记册</Term>}
       subtitle={`对应 PMBOK 8 风险绩效域 · 概率×影响（1~5 标度）· ${openCount} 个未关闭`}
       actions={
         <Button size="sm" onClick={() => openDialog(null)}>

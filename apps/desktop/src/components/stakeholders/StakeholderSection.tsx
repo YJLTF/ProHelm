@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Dialog } from "../ui/Dialog";
 import { EmptyState } from "../ui/EmptyState";
+import { Term } from "../ui/Term";
 import { Input, Label, Select, Textarea } from "../ui/Input";
 import {
   useCreateStakeholder,
@@ -119,7 +120,7 @@ export function StakeholderSection({ projectId }: Props) {
 
   return (
     <Card
-      title="干系人登记册"
+      title={<Term id="stakeholder-register">干系人登记册</Term>}
       subtitle="对应 PMBOK 8 干系人绩效域 · 权力/利益方格（1~5 标度，≥4 为高）"
       actions={
         <Button size="sm" onClick={() => openDialog(null)}>

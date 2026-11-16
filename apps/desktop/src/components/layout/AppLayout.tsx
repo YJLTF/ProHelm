@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router";
 import type { LucideIcon } from "lucide-react";
 import {
+  BookOpen,
   Compass,
   FolderKanban,
   LayoutTemplate,
@@ -26,6 +27,7 @@ const navItems: NavItem[] = [
   { to: "/", label: "驾驶舱", icon: Compass, end: true },
   { to: "/projects", label: "项目", icon: FolderKanban },
   { to: "/templates", label: "模板库", icon: LayoutTemplate },
+  { to: "/kb", label: "知识库", icon: BookOpen },
   { to: "/settings", label: "设置", icon: Settings },
 ];
 

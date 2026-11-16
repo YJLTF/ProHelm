@@ -60,3 +60,6 @@
 - 新建项目统一走 `lib/templateApply.ts`（空白/行业模板共用一条落库路径）
 - 诊断统计（`repo::stats::telemetry`）只允许从 OpLog/业务表聚合**次数与天数**，
   严禁写入任何内容文本；无网络上报，展示与导出均由用户主动触发
+- PMP 术语速查（`data/kbTerms.ts`）为自研讲解，不复制 PMBOK 原文；
+  新增术语必须带 `inProHelm`（界面位置指引）与 related 互链；
+  界面引导用 `<Term id="...">` 组件（虚线下划线 + hover 释义 + 点击跳转 /kb）

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Term } from "../ui/Term";
 import { useApplyRecommendedTailoring, useSetTailored } from "../../hooks/useProjects";
 import { cn } from "../../lib/format";
 import { toast } from "../../store/toast";
@@ -27,7 +28,7 @@ export function TailoringCard({ project }: { project: Project }) {
 
   return (
     <Card
-      title="方法论裁剪器"
+      title={<Term id="tailoring">方法论裁剪器</Term>}
       subtitle={`按「${PROJECT_METHOD_LABEL[project.method]}」预置 · PMBOK 8 过程非规范性、可裁剪`}
       actions={
         <>

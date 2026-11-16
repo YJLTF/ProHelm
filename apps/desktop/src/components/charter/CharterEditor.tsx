@@ -5,6 +5,7 @@ import { CharterDraftDialog } from "../ai/CharterDraftDialog";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Label, Textarea } from "../ui/Input";
+import { Term } from "../ui/Term";
 import { useCharter, useSaveCharter } from "../../hooks/useProjects";
 import { toast } from "../../store/toast";
 import { CHARTER_SECTION_DEFS } from "../../data/charter";
@@ -30,7 +31,7 @@ export function CharterEditor({ projectId }: { projectId: string }) {
 
   return (
     <Card
-      title="项目章程"
+      title={<Term id="charter">项目章程</Term>}
       subtitle={
         charter.data?.created
           ? "对应 PMBOK 8「启动」焦点领域 · 首次访问已生成空白章程，可用 AI 起草后逐节修改"

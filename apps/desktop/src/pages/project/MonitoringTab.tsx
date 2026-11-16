@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { EvmSection } from "../../components/evm/EvmSection";
+import { Term } from "../../components/ui/Term";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { api } from "../../lib/ipc";
@@ -72,7 +73,7 @@ export function MonitoringTab({ project, tasks }: Props) {
       </div>
 
       <Card
-        title="计划基线"
+        title={<Term id="baseline">计划基线</Term>}
         subtitle="保存当前 WBS / 依赖结构快照，作为挣值管理（EVM）与进度对比的计划基准"
       >
         <div className="mb-3">

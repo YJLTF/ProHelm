@@ -6,6 +6,7 @@ import { GanttView } from "../../components/tasks/GanttView";
 import { TaskList } from "../../components/tasks/TaskList";
 import { RiskSection } from "../../components/risks/RiskSection";
 import { Card } from "../../components/ui/Card";
+import { Term } from "../../components/ui/Term";
 import { cn } from "../../lib/format";
 import type { Project, Task } from "../../types";
 
@@ -23,7 +24,7 @@ export function PlanningTab({ project, tasks, tasksLoading }: Props) {
   return (
     <div className="space-y-4">
       <Card
-        title="任务与 WBS"
+        title={<Term id="wbs">任务与 WBS</Term>}
         subtitle="对应 PMBOK 8「规划」焦点领域 · WBS 编码自动维护（1 / 1.1 / 1.2.3）· 甘特图含关键路径"
         actions={
           <div className="flex items-center gap-1.5">

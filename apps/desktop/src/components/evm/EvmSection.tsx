@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { BarChart3, Clock, LineChart, Plus, Trash2, TrendingUp } from "lucide-react";
 
 import { useBaselines, useCreateTimeLog, useDeleteTimeLog, useEvm, useTimeLogs } from "../../hooks/useProjects";
@@ -8,6 +9,7 @@ import { Card } from "../../components/ui/Card";
 import { Dialog } from "../../components/ui/Dialog";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { Input, Label, Select, Textarea } from "../../components/ui/Input";
+import { Term } from "../ui/Term";
 import { toast } from "../../store/toast";
 import type { EvmReport, Project, Task, TimeLog } from "../../types";
 
@@ -155,26 +157,26 @@ function EvmBody({ report }: { report: EvmReport }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-4 gap-3">
-        <MetricCell label="BAC 完工预算" value={`${fmtHours(s.bac)}h`} tone="text-slate-800" />
-        <MetricCell label="PV 计划价值" value={`${fmtHours(s.pv)}h`} tone="text-slate-600" />
-        <MetricCell label="EV 挣值" value={`${fmtHours(s.ev)}h`} tone="text-emerald-600" />
-        <MetricCell label="AC 实际成本" value={`${fmtHours(s.ac)}h`} tone="text-rose-600" />
+        <MetricCell label={<Term id="bac">BAC 完工预算</Term>} value={`${fmtHours(s.bac)}h`} tone="text-slate-800" />
+        <MetricCell label={<Term id="pv">PV 计划价值</Term>} value={`${fmtHours(s.pv)}h`} tone="text-slate-600" />
+        <MetricCell label={<Term id="ev">EV 挣值</Term>} value={`${fmtHours(s.ev)}h`} tone="text-emerald-600" />
+        <MetricCell label={<Term id="ac">AC 实际成本</Term>} value={`${fmtHours(s.ac)}h`} tone="text-rose-600" />
       </div>
       <div className="grid grid-cols-4 gap-3">
         <MetricCell
-          label="SPI 进度绩效"
+          label={<Term id="spi">SPI 进度绩效</Term>}
           value={s.spi.toFixed(2)}
           tone={toneClass[indexTone(s.spi)]}
           hint={s.spi >= 1 ? "进度符合或超前计划" : "进度落后于计划"}
         />
         <MetricCell
-          label="CPI 成本绩效"
+          label={<Term id="cpi">CPI 成本绩效</Term>}
           value={s.cpi.toFixed(2)}
           tone={toneClass[indexTone(s.cpi)]}
           hint={s.cpi >= 1 ? "成本效率达标" : "每挣 1 人时花费超预算"}
         />
         <MetricCell
-          label="EAC 完工估算"
+          label={<Term id="eac">EAC 完工估算</Term>}
           value={`${fmtHours(s.eac)}h`}
           tone={s.eac > s.bac ? "text-red-600" : "text-slate-800"}
           hint={`按当前 CPI 推算 · VAC ${fmtHours(s.vac)}h`}
@@ -204,7 +206,7 @@ function MetricCell({
   tone,
   hint,
 }: {
-  label: string;
+  label: ReactNode;
   value: string;
   tone: string;
   hint?: string;
